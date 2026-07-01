@@ -1,8 +1,8 @@
 # -*- coding:utf-8 -*-
 
 from network.cylinder_spconv_3d import get_model_class
-from network.segmentator_3d_asymm_spconv import Asymm_3d_spconv
-# from network.segmentator_3d_asymm_spconv_fr_ugfa import Asymm_3d_spconv
+# from network.segmentator_3d_asymm_spconv import Asymm_3d_spconv
+from network.segmentator_3d_asymm_spconv_fr_ugfa import Asymm_3d_spconv
 from network.cylinder_fea_generator import cylinder_fea
 
 

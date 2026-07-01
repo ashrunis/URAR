@@ -43,15 +43,15 @@ dataset_params:
 ###################
 ## Data_loader options
 train_data_loader:
-  data_path: "/home/aqy/dataset/SemanticKITTI/dataset/sequences/"
+  data_path: "/home/aqy/data/SemanticKITTI/dataset/sequences/"
   imageset: "train"
   return_ref: True
-  batch_size: 4
+  batch_size: 3
   shuffle: True
   num_workers: 6
 
 val_data_loader:
-  data_path: "/home/aqy/dataset/SemanticKITTI/dataset/sequences/"
+  data_path: "/home/aqy/data/SemanticKITTI/dataset/sequences/"
   imageset: "val"
   return_ref: True
   batch_size: 1
