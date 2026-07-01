@@ -1,0 +1,8 @@
+conda create -n urar python=3.10 -y
+conda activate urar
+conda install nvidia::cuda-toolkit==12.8.0
+pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+pip install torch-scatter -f https://data.pyg.org/whl/torch-2.8.0+cu128.html
+pip install pyyaml cython numba tqdm strictyaml scikit-learn
+pip install cumm==0.7.3
+pip install spconv-cu126

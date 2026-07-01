@@ -1,0 +1,1 @@
+python remap_semantic_labels.py --predictions /home/aqy/myproject/DOSS/exp/semantic_kitti/00/CSS_results/ --split valid --inverse

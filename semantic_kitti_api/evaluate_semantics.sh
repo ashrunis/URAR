@@ -1,0 +1,1 @@
+python evaluate_semantics.py --dataset /data2/aqy/dataset/semantic_kitti --predictions /home/aqy/myproject/DOSS/exp/semantic_kitti/01/ --split valid
