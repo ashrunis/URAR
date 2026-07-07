@@ -116,7 +116,7 @@ def main(args):
 
     loss_objectosphere_func = loss_functions.ObjectosphereLoss(sigma=1.0)
 
-    loss_arcface_func = loss_functions.ArcFace(s=64.0, margin=0.5, ignore_index=-1)
+    loss_arcface_func = loss_functions.ArcFace(s=64.0, margin=0.3, ignore_index=-1)
 
     # training
     epoch = 0
@@ -167,7 +167,7 @@ def main(args):
             )
             loss_obj = loss_objectosphere_func(y_out_arcface_valid, voxel_label_obj.squeeze())
 
-            loss = 1.0 * loss_sem + 0.5 * loss_obj + 0.5 * loss_arcface
+            loss = 1.0 * loss_sem + 0.3 * loss_obj + 0.5 * loss_arcface
 
             loss.backward()
             optimizer.step()

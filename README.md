@@ -1,5 +1,5 @@
 # 基本介绍
-这是我们开放集点云分割工作（Uncertainty Rectified Angular Representation for Open-set Point Cloud Semantic Segmentation）的代码仓库，实现上我们以 DOSS 项目为基础，并进行了修改
+这是我们开放集点云分割工作（Uncertainty Rectified Angular Representation for Open-set Point Cloud Semantic Segmentation）的代码仓库，实现上我们以 DOSS/REAL 项目为基础，并进行了修改
 
 ## 执行规范
 - 所有脚本默认使用名为 doss 的 conda 环境
