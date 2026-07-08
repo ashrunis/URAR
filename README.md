@@ -25,17 +25,17 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node=4 train_cylinder_asym_ood
 cd semantickitti_scripts
 ```
 ```
-CUDA_VISIBLE_DEVICES=0 python val_cylinder_asym_ood.py --save_folder ~/myproject/DOSS/exp/semantic_kitti/00/ --config_path ../config/semantickitti_ood_final.yaml
+CUDA_VISIBLE_DEVICES=0 python val_cylinder_asym_ood.py --save_folder ~/myproject/OWSS/DOSS/exp/semantic_kitti/00/ --config_path ../config/semantickitti_ood_final.yaml
 ```
 ## Evaluation on SemanticKITTI
 ```
 cd semantic_kitti_api
 ```
 ```
-python remap_semantic_labels.py --predictions /home/aqy/myproject/DOSS/exp/semantic_kitti/00/CSS_results/ --split valid --inverse
+python remap_semantic_labels.py --predictions ~/myproject/OWSS/DOSS/exp/semantic_kitti/00/CSS_results/ --split valid --inverse
 ```
 ```
-python evaluate_semantics.py --dataset /home/aqy/dataset/SemanticKITTI/dataset --predictions /home/aqy/myproject/DOSS/exp/semantic_kitti/00/ --split valid
+python evaluate_semantics.py --dataset ~/data/SemanticKITTI/dataset --predictions ~/myproject/OWSS/DOSS/exp/semantic_kitti/00/ --split valid
 ```
 ## Training on nuScenes
 ```
