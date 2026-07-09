@@ -132,11 +132,13 @@ def main(args):
             # Anomaly detection
             y_out_normal_pointwise = y_out_normal[batch, :, val_grid[batch][:, 0], val_grid[batch][:, 1], val_grid[batch][:, 2]].permute(1, 0).cpu().numpy()
 
-            max_values = np.linalg.norm(y_out_normal_pointwise, axis=1)
-            conf_score = np.where(max_values <= 1.0, 1.0, 0.1)
+            max_values = np.max(y_out_normal_pointwise, axis=1)
+            # conf_score = np.where(max_values <= 0.4, 1.0, 0.1)
+            conf_score = 1.0 - max_values
 
             # norm_values = np.linalg.norm(y_out_normal_pointwise, axis=1)
-            # ortho_score = 1.0 - norm_values
+            # conf_score = np.where(norm_values <= 1.0, 1.0, 0.1)
+            # conf_score = 1.0 - norm_values
 
             # s_scale = 10.0
             # scaled_logits = y_out_normal_pointwise * s_scale
@@ -148,7 +150,7 @@ def main(args):
             # norm_entropy = entropy / max_entropy
 
             # lambda_ent = 0.3
-            # conf_score = ortho_score + lambda_ent * norm_entropy
+            # conf_score = conf_score + lambda_ent * norm_entropy
             # conf_score = np.where(conf_score >= 0.5, 1.0, 0.1)
 
             conf_score = conf_score.astype(np.float32)

@@ -5,6 +5,7 @@ format_version: 4
 ## Model options
 model_params:
   model_architecture: "cylinder_asym"
+  model_variant: "doss"  # doss, fr, ugfa, fr_ugfa
 
   output_shape:
     - 480
@@ -62,10 +63,10 @@ val_data_loader:
 ###################
 ## Train params
 train_params:
-  model_load_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/00/best_model.pt"  # path of pre-trained model for evaluation or resume training
-  model_save_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/00/best_model.pt"  # path to save the best training checkpoint
-  model_latest_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/00/latest_model.pt"  # path to save the latest training checkpoint
-  checkpoint_every_n_steps: 9565
+  model_load_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/doss/best_model.pt"  # path of pre-trained model for evaluation or resume training
+  model_save_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/doss/best_model.pt"  # path to save the best training checkpoint
+  model_latest_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/doss/latest_model.pt"  # path to save the latest training checkpoint
+  checkpoint_every_n_steps: 6376
   max_num_epochs: 20
-  eval_every_n_steps: 9565
+  eval_every_n_steps: 6376
   learning_rate: 0.001

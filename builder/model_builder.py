@@ -1,9 +1,19 @@
 # -*- coding:utf-8 -*-
 
 from network.cylinder_spconv_3d import get_model_class
-# from network.segmentator_3d_asymm_spconv import Asymm_3d_spconv
-from network.segmentator_3d_asymm_spconv_fr_ugfa import Asymm_3d_spconv
+from network.segmentator_3d_asymm_spconv import Asymm_3d_spconv as DOSSAsymm3dSpconv
+from network.segmentator_3d_asymm_spconv_fr import Asymm_3d_spconv as FRAsymm3dSpconv
+from network.segmentator_3d_asymm_spconv_ugfa import Asymm_3d_spconv as UGFAAsymm3dSpconv
+from network.segmentator_3d_asymm_spconv_fr_ugfa import Asymm_3d_spconv as FRUGFAAsymm3dSpconv
 from network.cylinder_fea_generator import cylinder_fea
+
+
+MODEL_VARIANTS = {
+    "doss": DOSSAsymm3dSpconv,
+    "fr": FRAsymm3dSpconv,
+    "ugfa": UGFAAsymm3dSpconv,
+    "fr_ugfa": FRUGFAAsymm3dSpconv,
+}
 
 
 def build(model_config):
@@ -14,8 +24,15 @@ def build(model_config):
     init_size = model_config['init_size']
     fea_dim = model_config['fea_dim']
     out_fea_dim = model_config['out_fea_dim']
+    model_variant = str(model_config.get("model_variant", "fr_ugfa")).lower()
+    if model_variant not in MODEL_VARIANTS:
+        raise ValueError(
+            f"Unsupported model_variant='{model_variant}'. "
+            f"Expected one of {sorted(MODEL_VARIANTS)}."
+        )
+    segmentator_class = MODEL_VARIANTS[model_variant]
 
-    cylinder_3d_spconv_seg = Asymm_3d_spconv(
+    cylinder_3d_spconv_seg = segmentator_class(
         output_shape=output_shape,
         num_input_features=num_input_features,
         init_size=init_size,

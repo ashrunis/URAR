@@ -7,6 +7,7 @@ from strictyaml import Bool, Float, Int, Map, Optional, Seq, Str, as_document, l
 model_params = Map(
     {
         "model_architecture": Str(),
+        Optional("model_variant"): Str(),
         "output_shape": Seq(Int()),
         "fea_dim": Int(),
         "out_fea_dim": Int(),
