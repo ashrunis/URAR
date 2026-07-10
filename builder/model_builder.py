@@ -6,6 +6,7 @@ from network.segmentator_3d_asymm_spconv_fr import Asymm_3d_spconv as FRAsymm3dS
 from network.segmentator_3d_asymm_spconv_ugfa import Asymm_3d_spconv as UGFAAsymm3dSpconv
 from network.segmentator_3d_asymm_spconv_fr_ugfa import Asymm_3d_spconv as FRUGFAAsymm3dSpconv
 from network.cylinder_fea_generator import cylinder_fea
+import network.ptv3_spconv_3d
 
 
 MODEL_VARIANTS = {
@@ -13,6 +14,7 @@ MODEL_VARIANTS = {
     "fr": FRAsymm3dSpconv,
     "ugfa": UGFAAsymm3dSpconv,
     "fr_ugfa": FRUGFAAsymm3dSpconv,
+    "ptv3": None,
 }
 
 
@@ -30,6 +32,9 @@ def build(model_config):
             f"Unsupported model_variant='{model_variant}'. "
             f"Expected one of {sorted(MODEL_VARIANTS)}."
         )
+    if model_variant == "ptv3":
+        return get_model_class("ptv3_asym")(model_config)
+
     segmentator_class = MODEL_VARIANTS[model_variant]
 
     cylinder_3d_spconv_seg = segmentator_class(

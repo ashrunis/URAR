@@ -15,6 +15,8 @@ model_params = Map(
         "num_input_features": Int(),
         "use_norm": Bool(),
         "init_size": Int(),
+        Optional("ptv3_patch_size"): Int(),
+        Optional("ptv3_drop_path"): Float(),
     }
 )
 

@@ -190,11 +190,11 @@ class ObjectosphereLoss(nn.Module):
         if len(logits_unk):
             loss_unk = torch.linalg.norm(logits_unk, dim=1).mean()
         else:
-            loss_unk = torch.tensor(0)
+            loss_unk = logits.new_zeros(())
         if len(logits_kn):
             loss_kn = F.relu(self.sigma - torch.linalg.norm(logits_kn, dim=1)).mean()
         else:
-            loss_kn = torch.tensor(0)
+            loss_kn = logits.new_zeros(())
         
         loss = 10 * loss_unk + loss_kn
         return loss

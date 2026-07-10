@@ -5,7 +5,7 @@ format_version: 4
 ## Model options
 model_params:
   model_architecture: "cylinder_asym"
-  model_variant: "doss"  # doss, fr, ugfa, fr_ugfa
+  model_variant: "ptv3"  # doss, fr, ugfa, fr_ugfa, ptv3
 
   output_shape:
     - 480
@@ -14,10 +14,12 @@ model_params:
 
   fea_dim: 9
   out_fea_dim: 256
-  num_class: 18  # auto-adjusted by the SemanticKITTI scripts if unknown_labels contains multiple classes
+  num_class: 18
   num_input_features: 16
   use_norm: True
   init_size: 32
+  ptv3_patch_size: 128
+  ptv3_drop_path: 0.3
 
 
 ###################
@@ -27,7 +29,7 @@ dataset_params:
   pc_dataset_type: "SemKITTI_sk_panop"
   ignore_label: 0
   return_test: False
-  unknown_label: 5  # SemanticKITTI learning label treated as unknown; use either unknown_label or unknown_labels
+  unknown_label: 5
   # unknown_labels: [6, 7]
   fixed_volume_space: True
   label_mapping: "../config/label_mapping/semantic-kitti.yaml"
@@ -47,7 +49,7 @@ train_data_loader:
   data_path: "/home/aqy/data/SemanticKITTI/dataset/sequences/"
   imageset: "train"
   return_ref: True
-  batch_size: 3
+  batch_size: 2
   shuffle: True
   num_workers: 6
 
@@ -63,10 +65,10 @@ val_data_loader:
 ###################
 ## Train params
 train_params:
-  model_load_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/doss/best_model.pt"  # path of pre-trained model for evaluation or resume training
-  model_save_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/doss/best_model.pt"  # path to save the best training checkpoint
-  model_latest_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/doss/latest_model.pt"  # path to save the latest training checkpoint
-  checkpoint_every_n_steps: 6376
+  model_load_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/ptv3/best_model.pt"  # path of pre-trained model for evaluation or resume training
+  model_save_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/ptv3/best_model.pt"  # path to save the best training checkpoint
+  model_latest_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/ptv3/latest_model.pt"  # path to save the latest training checkpoint
+  checkpoint_every_n_steps: 9565
   max_num_epochs: 20
-  eval_every_n_steps: 6376
+  eval_every_n_steps: 9565
   learning_rate: 0.001
