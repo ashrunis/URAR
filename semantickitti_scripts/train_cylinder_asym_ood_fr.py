@@ -128,7 +128,7 @@ def main(args):
 
     while epoch < train_hypers['max_num_epochs']:
         loss_list = []
-        pbar = tqdm(total=len(train_dataset_loader))
+        pbar = tqdm(total=len(train_dataset_loader), dynamic_ncols=True)
 
         for i_iter, (_, train_vox_label, train_grid, _, train_pt_fea) in enumerate(train_dataset_loader):
             train_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in train_pt_fea]
@@ -203,7 +203,7 @@ def main(args):
         val_loss_list = []
         
         with torch.no_grad():
-            pbar_val = tqdm(total=len(val_dataset_loader))
+            pbar_val = tqdm(total=len(val_dataset_loader), dynamic_ncols=True)
             for i_iter_val, (_, val_vox_label, val_grid, val_pt_labs, val_pt_fea, idx) in enumerate(
                     val_dataset_loader):
 

@@ -15,6 +15,7 @@ MODEL_VARIANTS = {
     "ugfa": UGFAAsymm3dSpconv,
     "fr_ugfa": FRUGFAAsymm3dSpconv,
     "ptv3": None,
+    "ptv3_doss": None,
 }
 
 
@@ -32,8 +33,9 @@ def build(model_config):
             f"Unsupported model_variant='{model_variant}'. "
             f"Expected one of {sorted(MODEL_VARIANTS)}."
         )
-    if model_variant == "ptv3":
-        return get_model_class("ptv3_asym")(model_config)
+    if model_variant in {"ptv3", "ptv3_doss"}:
+        ptv3_class = "ptv3_doss_asym" if model_variant == "ptv3_doss" else "ptv3_asym"
+        return get_model_class(ptv3_class)(model_config)
 
     segmentator_class = MODEL_VARIANTS[model_variant]
 

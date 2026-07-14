@@ -192,6 +192,7 @@ def main(args):
 
     while epoch < train_hypers['max_num_epochs']:
         loss_list = []
+        train_sampler.set_epoch(epoch)
         if rank == 0:
             pbar = tqdm(total=len(train_dataset_loader), dynamic_ncols=True)
 

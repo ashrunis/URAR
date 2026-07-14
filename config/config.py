@@ -17,6 +17,7 @@ model_params = Map(
         "init_size": Int(),
         Optional("ptv3_patch_size"): Int(),
         Optional("ptv3_drop_path"): Float(),
+        Optional("ptv3_enable_flash"): Bool(),
     }
 )
 

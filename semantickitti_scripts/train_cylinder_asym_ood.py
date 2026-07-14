@@ -131,7 +131,7 @@ def main(args):
 
     while epoch < train_hypers['max_num_epochs']:
         loss_list = []
-        pbar = tqdm(total=len(train_dataset_loader))
+        pbar = tqdm(total=len(train_dataset_loader), dynamic_ncols=True)
 
         mavs = None
         if epoch == 0 and os.path.exists(model_load_path):
@@ -245,7 +245,7 @@ def main(args):
         if epoch and loss_contrastive_func is not None:
             mavs = loss_center_func.read()
         with torch.no_grad():
-            pbar_val = tqdm(total=len(val_dataset_loader))
+            pbar_val = tqdm(total=len(val_dataset_loader), dynamic_ncols=True)
             for i_iter_val, (_, val_vox_label, val_grid, val_pt_labs, val_pt_fea, idx) in enumerate(
                     val_dataset_loader):
 

@@ -5,7 +5,7 @@ format_version: 4
 ## Model options
 model_params:
   model_architecture: "cylinder_asym"
-  model_variant: "fr_ugfa"  # doss, fr, ugfa, fr_ugfa, ptv3
+  model_variant: "fr_ugfa"  # doss, fr, ugfa, fr_ugfa, ptv3, ptv3_doss
 
   output_shape:
     - 480
@@ -45,7 +45,7 @@ train_data_loader:
   data_path: "/home/aqy/data/nuscenes/"
   imageset: "/home/aqy/data/nuscenes/lidarseg/nuscenes_infos_train.pkl"
   return_ref: True
-  batch_size: 4
+  batch_size: 3
   shuffle: True
   num_workers: 6
 
@@ -61,9 +61,9 @@ val_data_loader:
 ###################
 ## Train params
 train_params:
-  model_load_path: "/home/aqy/myproject/DOSS/checkpoints/nuscenes/00/best_model.pt"  # path of pre-trained model
-  model_save_path: "/home/aqy/myproject/DOSS/checkpoints/nuscenes/00/best_model.pt"  # path to save the best training checkpoint
-  model_latest_path: "/home/aqy/myproject/DOSS/checkpoints/nuscenes/00/latest_model.pt"  # path to save the latest training checkpoint
+  model_load_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/nuscenes/urar/best_model.pt"  # path of pre-trained model
+  model_save_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/nuscenes/urar/best_model.pt"  # path to save the best training checkpoint
+  model_latest_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/nuscenes/urar/latest_model.pt"  # path to save the latest training checkpoint
   checkpoint_every_n_steps: 7032
   max_num_epochs: 20
   eval_every_n_steps: 7032

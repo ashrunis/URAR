@@ -857,6 +857,30 @@ class PointTransformerV3(PointModule):
         self.cls_mode = cls_mode
         self.shuffle_orders = shuffle_orders
 
+        # Keep the decoder specification so callers can construct independent
+        # decoders on top of one shared encoder.
+        self._decoder_config = {
+            "enc_channels": tuple(enc_channels),
+            "dec_depths": tuple(dec_depths),
+            "dec_channels": tuple(dec_channels),
+            "dec_num_head": tuple(dec_num_head),
+            "dec_patch_size": tuple(dec_patch_size),
+            "mlp_ratio": mlp_ratio,
+            "qkv_bias": qkv_bias,
+            "qk_scale": qk_scale,
+            "attn_drop": attn_drop,
+            "proj_drop": proj_drop,
+            "drop_path": drop_path,
+            "pre_norm": pre_norm,
+            "norm_layer": None,
+            "block_norm_layer": None,
+            "act_layer": None,
+            "enable_rpe": enable_rpe,
+            "enable_flash": enable_flash,
+            "upcast_attention": upcast_attention,
+            "upcast_softmax": upcast_softmax,
+        }
+
         assert self.num_stages == len(stride) + 1
         assert self.num_stages == len(enc_depths)
         assert self.num_stages == len(enc_channels)
@@ -892,6 +916,9 @@ class PointTransformerV3(PointModule):
             ln_layer = nn.LayerNorm
         # activation layers
         act_layer = nn.GELU
+        self._decoder_config["norm_layer"] = bn_layer
+        self._decoder_config["block_norm_layer"] = ln_layer
+        self._decoder_config["act_layer"] = act_layer
 
         self.embedding = Embedding(
             in_channels=in_channels,
@@ -950,52 +977,86 @@ class PointTransformerV3(PointModule):
 
         # decoder
         if not self.cls_mode:
-            dec_drop_path = [
-                x.item() for x in torch.linspace(0, drop_path, sum(dec_depths))
+            self.dec = self.build_decoder()
+
+    def build_decoder(self):
+        """Build a decoder compatible with this encoder's skip connections."""
+        config = self._decoder_config
+        dec_drop_path = [
+            x.item()
+            for x in torch.linspace(0, config["drop_path"], sum(config["dec_depths"]))
+        ]
+        decoder = PointSequential()
+        dec_channels = list(config["dec_channels"]) + [config["enc_channels"][-1]]
+        for s in reversed(range(self.num_stages - 1)):
+            dec_drop_path_ = dec_drop_path[
+                sum(config["dec_depths"][:s]) : sum(config["dec_depths"][: s + 1])
             ]
-            self.dec = PointSequential()
-            dec_channels = list(dec_channels) + [enc_channels[-1]]
-            for s in reversed(range(self.num_stages - 1)):
-                dec_drop_path_ = dec_drop_path[
-                    sum(dec_depths[:s]) : sum(dec_depths[: s + 1])
-                ]
-                dec_drop_path_.reverse()
-                dec = PointSequential()
+            dec_drop_path_.reverse()
+            dec = PointSequential()
+            dec.add(
+                SerializedUnpooling(
+                    in_channels=dec_channels[s + 1],
+                    skip_channels=config["enc_channels"][s],
+                    out_channels=dec_channels[s],
+                    norm_layer=config["norm_layer"],
+                    act_layer=config["act_layer"],
+                ),
+                name="up",
+            )
+            for i in range(config["dec_depths"][s]):
                 dec.add(
-                    SerializedUnpooling(
-                        in_channels=dec_channels[s + 1],
-                        skip_channels=enc_channels[s],
-                        out_channels=dec_channels[s],
-                        norm_layer=bn_layer,
-                        act_layer=act_layer,
+                    Block(
+                        channels=dec_channels[s],
+                        num_heads=config["dec_num_head"][s],
+                        patch_size=config["dec_patch_size"][s],
+                        mlp_ratio=config["mlp_ratio"],
+                        qkv_bias=config["qkv_bias"],
+                        qk_scale=config["qk_scale"],
+                        attn_drop=config["attn_drop"],
+                        proj_drop=config["proj_drop"],
+                        drop_path=dec_drop_path_[i],
+                        norm_layer=config["block_norm_layer"],
+                        act_layer=config["act_layer"],
+                        pre_norm=config["pre_norm"],
+                        order_index=i % len(self.order),
+                        cpe_indice_key=f"stage{s}",
+                        enable_rpe=config["enable_rpe"],
+                        enable_flash=config["enable_flash"],
+                        upcast_attention=config["upcast_attention"],
+                        upcast_softmax=config["upcast_softmax"],
                     ),
-                    name="up",
+                    name=f"block{i}",
                 )
-                for i in range(dec_depths[s]):
-                    dec.add(
-                        Block(
-                            channels=dec_channels[s],
-                            num_heads=dec_num_head[s],
-                            patch_size=dec_patch_size[s],
-                            mlp_ratio=mlp_ratio,
-                            qkv_bias=qkv_bias,
-                            qk_scale=qk_scale,
-                            attn_drop=attn_drop,
-                            proj_drop=proj_drop,
-                            drop_path=dec_drop_path_[i],
-                            norm_layer=ln_layer,
-                            act_layer=act_layer,
-                            pre_norm=pre_norm,
-                            order_index=i % len(self.order),
-                            cpe_indice_key=f"stage{s}",
-                            enable_rpe=enable_rpe,
-                            enable_flash=enable_flash,
-                            upcast_attention=upcast_attention,
-                            upcast_softmax=upcast_softmax,
-                        ),
-                        name=f"block{i}",
-                    )
-                self.dec.add(module=dec, name=f"dec{s}")
+            decoder.add(module=dec, name=f"dec{s}")
+        return decoder
+
+    @staticmethod
+    def clone_point_tree(point):
+        """Copy mutable Point containers while keeping their feature graph shared."""
+        cloned = Point()
+        for key, value in point.items():
+            cloned[key] = (
+                PointTransformerV3.clone_point_tree(value)
+                if key == "pooling_parent"
+                else value
+            )
+        return cloned
+
+    def forward_encoder(self, data_dict):
+        point = Point(data_dict)
+        point.serialization(order=self.order, shuffle_orders=self.shuffle_orders)
+        point.sparsify()
+        point = self.embedding(point)
+        return self.enc(point)
+
+    def forward_decoder(self, point, decoder=None):
+        """Decode an encoder output without consuming its shared skip tree."""
+        if decoder is None:
+            if self.cls_mode:
+                raise RuntimeError("This PTv3 instance has no default decoder.")
+            decoder = self.dec
+        return decoder(self.clone_point_tree(point))
 
     def forward(self, data_dict):
         """
@@ -1005,12 +1066,7 @@ class PointTransformerV3(PointModule):
         2. "grid_coord": discrete coordinate after grid sampling (voxelization) or "coord" + "grid_size"
         3. "offset" or "batch": https://github.com/Pointcept/Pointcept?tab=readme-ov-file#offset
         """
-        point = Point(data_dict)
-        point.serialization(order=self.order, shuffle_orders=self.shuffle_orders)
-        point.sparsify()
-
-        point = self.embedding(point)
-        point = self.enc(point)
+        point = self.forward_encoder(data_dict)
         if not self.cls_mode:
-            point = self.dec(point)
+            point = self.forward_decoder(point)
         return point

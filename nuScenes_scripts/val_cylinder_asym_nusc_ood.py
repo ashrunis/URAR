@@ -122,6 +122,8 @@ def main(args):
             max_values = np.linalg.norm(y_out_normal_pointwise, axis=1)
             conf_score = np.where(max_values <= 0.65, 1.0, 0.1)
 
+            # conf_score = 1.0 - np.max(y_out_normal_pointwise, axis=1)
+
             conf_score = conf_score.astype(np.float32)
 
             ad_save_file = os.path.join(ad_save_folder, idx_s + ".label")
