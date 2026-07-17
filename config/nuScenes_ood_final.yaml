@@ -5,7 +5,7 @@ format_version: 4
 ## Model options
 model_params:
   model_architecture: "cylinder_asym"
-  model_variant: "fr_ugfa"  # doss, fr, ugfa, fr_ugfa, ptv3, ptv3_doss
+  model_variant: "fr_ugfa"  # doss, fr, ugfa, fr_ugfa
 
   output_shape:
     - 480

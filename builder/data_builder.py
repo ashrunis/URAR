@@ -1,7 +1,14 @@
 # -*- coding:utf-8 -*-
 
 import torch
-from dataloader.dataset_semantickitti import get_model_class, collate_fn_BEV, collate_fn_BEV_test, collate_fn_BEV_val
+from dataloader.dataset_semantickitti import (
+    get_model_class,
+    collate_fn_BEV,
+    collate_fn_BEV_test,
+    collate_fn_BEV_val,
+    collate_fn_ptv3_native,
+    collate_fn_ptv3_native_val,
+)
 from dataloader.pc_dataset import get_pc_model_class
 
 
@@ -53,16 +60,23 @@ def build(dataset_config,
         return_test=True,
     )
 
+    is_point_native = dataset_config['dataset_type'] in {
+        'ptv3_native_dataset_panop',
+        'point_native_dataset_panop',
+    }
+    train_collate_fn = collate_fn_ptv3_native if is_point_native else collate_fn_BEV
+    val_collate_fn = collate_fn_ptv3_native_val if is_point_native else collate_fn_BEV_test
+
     train_dataset_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                        batch_size=train_dataloader_config["batch_size"],
-                                                       collate_fn=collate_fn_BEV,
+                                                       collate_fn=train_collate_fn,
                                                        shuffle=train_dataloader_config["shuffle"],
                                                        num_workers=train_dataloader_config["num_workers"],
                                                        pin_memory=False,
                                                        drop_last=True)
     val_dataset_loader = torch.utils.data.DataLoader(dataset=val_dataset,
                                                      batch_size=val_dataloader_config["batch_size"],
-                                                     collate_fn=collate_fn_BEV_test,
+                                                     collate_fn=val_collate_fn,
                                                      shuffle=val_dataloader_config["shuffle"],
                                                      num_workers=val_dataloader_config["num_workers"],
                                                      pin_memory=False)

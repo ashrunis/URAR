@@ -273,39 +273,58 @@ class UGFAModule(nn.Module):
         self.conv_beta = spconv.SubMConv3d(
             in_channels, in_channels, kernel_size=1, stride=1, padding=0, bias=True
         )
+
+        nn.init.zeros_(self.conv_gamma.weight)
+        nn.init.zeros_(self.conv_gamma.bias)
+        nn.init.zeros_(self.conv_beta.weight)
+        nn.init.zeros_(self.conv_beta.bias)
         
-        # 3. 实例归一化 (Instance Norm)
-        # spconv 的 features 是 [N, C]，我们使用 InstanceNorm1d 将 N 视为序列长度进行归一化
-        self.norm = nn.InstanceNorm1d(in_channels, affine=False)
+        self.eps = 1e-5
+
+    def sparse_instance_norm(self, sparse_tensor):
+        features = sparse_tensor.features          # [N_total, C]
+        batch_ids = sparse_tensor.indices[:, 0]     # [N_total]
+
+        normalized = torch.empty_like(features)
+
+        # DDP 下这里是当前 GPU 的 local batch size
+        for batch_idx in range(sparse_tensor.batch_size):
+            mask = batch_ids == batch_idx
+
+            if not torch.any(mask):
+                continue
+
+            sample_features = features[mask]        # [N_b, C]
+
+            # 使用 FP32 统计量，AMP 下更稳定
+            stats_features = sample_features.float()
+            mean = stats_features.mean(dim=0, keepdim=True)
+            var = stats_features.var(
+                dim=0,
+                unbiased=False,
+                keepdim=True,
+            )
+
+            sample_normalized = (
+                stats_features - mean
+            ) * torch.rsqrt(var + self.eps)
+
+            normalized[mask] = sample_normalized.to(features.dtype)
+
+        return normalized
 
     def forward(self, f_css, f_oss):
-        """
-        Args:
-            f_css: CSS 分支的特征 (SparseTensor)
-            f_oss: OSS 分支的特征 (SparseTensor) - 作为 Condition
-        Returns:
-            f_out: 调制后的 CSS 特征 (SparseTensor)
-        """
         # 1. 从 OSS 特征学习调制参数
-        # gamma, beta: [N, C]
         gamma = self.conv_gamma(f_oss).features
         beta = self.conv_beta(f_oss).features
 
         # 2. 对 CSS 特征进行归一化
-        # Input: [N, C] -> Unsqueeze -> [1, C, N] (Batch=1, Channel=C, Length=N)
         css_feat = f_css.features
-        # 注意：这里假设所有体素属于同一个 Batch 的大列表，或者 InstanceNorm 作用于每个 Channel
-        norm_feat = self.norm(css_feat.unsqueeze(0)).squeeze(0)
+        norm_feat = self.sparse_instance_norm(f_css)
 
-        # 3. 执行仿射变换: Norm * (1 + gamma) + beta
-        # 几何不确定性通过 gamma 控制特征强度，通过 beta 控制特征基准
-        out_feat = norm_feat * (1 + gamma) + beta
+        # 3. 执行仿射变换
+        out_feat = css_feat + norm_feat * gamma + beta
         
-        # 4. 残差连接 (Residual Connection)
-        # 保留原始语义信息，防止梯度消失
-        out_feat = out_feat + css_feat
-        
-        # 5. 返回替换特征后的 SparseTensor
         return f_css.replace_feature(out_feat)
 
 

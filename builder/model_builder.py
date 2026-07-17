@@ -6,7 +6,8 @@ from network.segmentator_3d_asymm_spconv_fr import Asymm_3d_spconv as FRAsymm3dS
 from network.segmentator_3d_asymm_spconv_ugfa import Asymm_3d_spconv as UGFAAsymm3dSpconv
 from network.segmentator_3d_asymm_spconv_fr_ugfa import Asymm_3d_spconv as FRUGFAAsymm3dSpconv
 from network.cylinder_fea_generator import cylinder_fea
-import network.ptv3_spconv_3d
+import network.ptv3_native
+import network.randla_native
 
 
 MODEL_VARIANTS = {
@@ -14,8 +15,8 @@ MODEL_VARIANTS = {
     "fr": FRAsymm3dSpconv,
     "ugfa": UGFAAsymm3dSpconv,
     "fr_ugfa": FRUGFAAsymm3dSpconv,
-    "ptv3": None,
-    "ptv3_doss": None,
+    "ptv3_native": None,
+    "randla_native": None,
 }
 
 
@@ -33,9 +34,10 @@ def build(model_config):
             f"Unsupported model_variant='{model_variant}'. "
             f"Expected one of {sorted(MODEL_VARIANTS)}."
         )
-    if model_variant in {"ptv3", "ptv3_doss"}:
-        ptv3_class = "ptv3_doss_asym" if model_variant == "ptv3_doss" else "ptv3_asym"
-        return get_model_class(ptv3_class)(model_config)
+    if model_variant == "ptv3_native":
+        return get_model_class("ptv3_native_asym")(model_config)
+    if model_variant == "randla_native":
+        return get_model_class("randla_native_asym")(model_config)
 
     segmentator_class = MODEL_VARIANTS[model_variant]
 

@@ -132,13 +132,13 @@ def main(args):
             # Anomaly detection
             y_out_normal_pointwise = y_out_normal[batch, :, val_grid[batch][:, 0], val_grid[batch][:, 1], val_grid[batch][:, 2]].permute(1, 0).cpu().numpy()
 
-            max_values = np.max(y_out_normal_pointwise, axis=1)
-            conf_score = np.where(max_values <= 0.4, 1.0, 0.1)
+            # max_values = np.max(y_out_normal_pointwise, axis=1)
+            # conf_score = np.where(max_values <= 0.4, 1.0, 0.1)
 
-            # max_values = np.linalg.norm(y_out_normal_pointwise, axis=1)
-            # conf_score = np.where(max_values <= 1.0, 1.0, 0.1)
+            # norm_values = np.linalg.norm(y_out_normal_pointwise, axis=1)
+            # conf_score = np.where(norm_values <= 1.0, 1.0, 0.1)
             
-            # conf_score = 1.0 - np.max(y_out_normal_pointwise, axis=1)
+            conf_score = 1.0 - np.max(y_out_normal_pointwise, axis=1)
 
             # conf_score = 1.0 - np.linalg.norm(np.maximum(y_out_normal_pointwise, 0.0), axis=1)
 
