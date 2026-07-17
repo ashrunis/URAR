@@ -57,6 +57,6 @@ train_params:
   model_save_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/ptv3_native/best_model.pt"
   model_latest_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/ptv3_native/latest_model.pt"
   checkpoint_every_n_steps: 9565
-  max_num_epochs: 40
+  max_num_epochs: 20
   eval_every_n_steps: 9565
-  learning_rate: 0.0002
+  learning_rate: 0.001

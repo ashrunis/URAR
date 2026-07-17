@@ -63,9 +63,9 @@ val_data_loader:
 ###################
 ## Train params
 train_params:
-  model_load_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/fr_ugfa/best_model.pt"  # path of pre-trained model for evaluation or resume training
-  model_save_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/fr_ugfa/best_model.pt"  # path to save the best training checkpoint
-  model_latest_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/fr_ugfa/latest_model.pt"  # path to save the latest training checkpoint
+  model_load_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/urar/best_model.pt"  # path of pre-trained model for evaluation or resume training
+  model_save_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/urar/best_model.pt"  # path to save the best training checkpoint
+  model_latest_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/semantic_kitti/urar/latest_model.pt"  # path to save the latest training checkpoint
   checkpoint_every_n_steps: 9565
   max_num_epochs: 20
   eval_every_n_steps: 9565
