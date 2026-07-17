@@ -146,13 +146,13 @@ For single-GPU debugging, run the same script with `CUDA_VISIBLE_DEVICES=0 pytho
 `--save_folder` controls where CSS predictions and anomaly scores are written.
 
 ```bash
-python val_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml --save_folder ../exp/semantic_kitti/fr_ugfa/
+python val_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml --save_folder ../exp/semantic_kitti/urar/
 ```
 
 For PTv3:
 
 ```bash
-python val_ptv3_native_ood.py --config_path ../config/semantickitti_ood_ptv3.yaml --save_folder ../exp/semantic_kitti/backbone/ptv3_native/
+python val_ptv3_native_ood.py --config_path ../config/semantickitti_ood_ptv3.yaml --save_folder ../exp/semantic_kitti/ptv3_native/
 ```
 ### Evaluation
 
@@ -161,9 +161,9 @@ The repository keeps `semantic_kitti_api/` unchanged as the official reference i
 ```bash
 cd semantic_kitti_api
 
-python remap_semantic_labels.py --predictions ../exp/semantic_kitti/fr_ugfa/CSS_results/ --split valid --inverse
+python remap_semantic_labels.py --predictions ../exp/semantic_kitti/urar/CSS_results/ --split valid --inverse
 
-python evaluate_semantics.py --dataset ~/data/SemanticKITTI/dataset --predictions ../exp/semantic_kitti/fr_ugfa/ --split valid
+python evaluate_semantics.py --dataset ~/data/SemanticKITTI/dataset --predictions ../exp/semantic_kitti/urar/ --split valid
 ```
 
 ## nuScenes

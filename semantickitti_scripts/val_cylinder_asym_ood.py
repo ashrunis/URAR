@@ -153,6 +153,7 @@ def main(args):
 
             # lambda_ent = 0.3
             # conf_score = conf_score + lambda_ent * norm_entropy
+            
             # conf_score = np.where(conf_score >= 0.5, 1.0, 0.1)
 
             conf_score = conf_score.astype(np.float32)
