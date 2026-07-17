@@ -586,12 +586,6 @@ class ptv3_native_dataset_panop(data.Dataset):
 
 
 @register_dataset
-class point_native_dataset_panop(ptv3_native_dataset_panop):
-    """Backbone-agnostic alias for native point-based models."""
-
-    pass
-
-@register_dataset
 class polar_dataset(data.Dataset):
     def __init__(self, in_dataset, grid_size, rotate_aug=False, flip_aug=False, ignore_label=255, return_test=False,
                  fixed_volume_space=False, max_volume_space=[50, np.pi, 2], min_volume_space=[0, -np.pi, -4],

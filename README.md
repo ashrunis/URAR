@@ -57,7 +57,7 @@ Select the network with `model_params.model_variant` in the dataset config:
 ```yaml
 model_params:
   model_architecture: "cylinder_asym"
-  model_variant: "fr_ugfa"  # doss, fr, ugfa, fr_ugfa, ptv3_native, randla_native
+  model_variant: "fr_ugfa"  # doss, fr, ugfa, fr_ugfa, ptv3_native
 ```
 
 Available variants:
@@ -68,10 +68,9 @@ fr        network/segmentator_3d_asymm_spconv_fr.py       Angular/prototype head
 ugfa      network/segmentator_3d_asymm_spconv_ugfa.py     UGFA-only variant
 fr_ugfa   network/segmentator_3d_asymm_spconv_fr_ugfa.py  Full proposed model
 ptv3_native network/ptv3_native.py                         Point-level Cartesian PTv3 with CSS/OSS decoders
-randla_native network/randla_native.py                     RandLA-Net with CSS/OSS decoders
 ```
 
-Keep the selected variant consistent with the training script. Use the Cylinder3D DOSS script for `model_variant: "doss"`, the FR scripts for `fr`, `ugfa`, or `fr_ugfa`, and the dedicated point-based scripts for `ptv3_native` or `randla_native`.
+Keep the selected variant consistent with the training script. Use the Cylinder3D DOSS script for `model_variant: "doss"`, the FR scripts for `fr`, `ugfa`, or `fr_ugfa`, and the dedicated point-based scripts for `ptv3_native`.
 
 ## Configuration Notes
 
@@ -95,8 +94,6 @@ train_params:
 ```
 
 `ptv3_native` is the point-level alternative. It consumes Cartesian `xyz + remission` directly and performs an independent Cartesian GridSample for each scan. Training losses supervise one sampled representative per occupied cell; validation uses the inverse map to restore predictions for every original point. Its dedicated configuration is `config/semantickitti_ood_ptv3.yaml`.
-
-`randla_native` consumes the same Cartesian `xyz + remission` input without GridSample. It uses four random-sampling encoder stages with LocSE and attentive pooling, followed by independent CSS and OSS decoders that restore logits for every original point. Its dedicated configuration is `config/semantickitti_ood_randla.yaml`.
 
 `model_load_path` is also used for resume/evaluation. If the file exists, the training script loads it automatically. Use a separate checkpoint directory for every ablation to avoid continuing from an unrelated experiment.
 
@@ -144,31 +141,19 @@ CUDA_VISIBLE_DEVICES=2,3 torchrun --nproc_per_node=2 --master_port 29502 train_p
 
 For single-GPU debugging, run the same script with `CUDA_VISIBLE_DEVICES=0 python` instead of `torchrun`.
 
-### Train RandLA-Net
-
-```bash
-CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2 --master_port 29503 train_randla_native_ood_fr_ddp.py --config_path ../config/semantickitti_ood_randla.yaml
-```
-
 ### Inference
 
 `--save_folder` controls where CSS predictions and anomaly scores are written.
 
 ```bash
-CUDA_VISIBLE_DEVICES=2 python val_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml --save_folder ../exp/semantic_kitti/fr_ugfa/
+python val_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml --save_folder ../exp/semantic_kitti/fr_ugfa/
 ```
 
 For PTv3:
 
 ```bash
-CUDA_VISIBLE_DEVICES=2 python val_ptv3_native_ood.py --config_path ../config/semantickitti_ood_ptv3.yaml --save_folder ../exp/semantic_kitti/backbone/ptv3_native/
+python val_ptv3_native_ood.py --config_path ../config/semantickitti_ood_ptv3.yaml --save_folder ../exp/semantic_kitti/backbone/ptv3_native/
 ```
-For RandLA-Net:
-
-```bash
-CUDA_VISIBLE_DEVICES=2 python val_randla_native_ood.py --config_path ../config/semantickitti_ood_randla.yaml --save_folder ../exp/semantic_kitti/backbone/randla_native/
-```
-
 ### Evaluation
 
 The repository keeps `semantic_kitti_api/` unchanged as the official reference implementation. It expects CSS predictions in raw SemanticKITTI IDs, so inverse-remap the learning-ID predictions first:
@@ -176,9 +161,9 @@ The repository keeps `semantic_kitti_api/` unchanged as the official reference i
 ```bash
 cd semantic_kitti_api
 
-python remap_semantic_labels.py --predictions ../exp/semantic_kitti/backbone/ptv3_native/CSS_results/ --split valid --inverse
+python remap_semantic_labels.py --predictions ../exp/semantic_kitti/fr_ugfa/CSS_results/ --split valid --inverse
 
-python evaluate_semantics.py --dataset ~/data/SemanticKITTI/dataset --predictions ../exp/semantic_kitti/backbone/ptv3_native/ --split valid
+python evaluate_semantics.py --dataset ~/data/SemanticKITTI/dataset --predictions ../exp/semantic_kitti/fr_ugfa/ --split valid
 ```
 
 ## nuScenes

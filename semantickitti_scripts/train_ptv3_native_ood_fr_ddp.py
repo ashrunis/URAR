@@ -28,8 +28,8 @@ from utils.semantickitti_unknown import get_unknown_label_metadata
 
 warnings.filterwarnings("ignore")
 
-SUPPORTED_POINT_VARIANTS = {"ptv3_native", "randla_native"}
-SUPPORTED_POINT_DATASETS = {"ptv3_native_dataset_panop", "point_native_dataset_panop"}
+SUPPORTED_POINT_VARIANTS = {"ptv3_native"}
+SUPPORTED_POINT_DATASETS = {"ptv3_native_dataset_panop"}
 
 
 def init_dist():

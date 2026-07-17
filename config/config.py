@@ -19,10 +19,6 @@ model_params = Map(
         Optional("ptv3_drop_path"): Float(),
         Optional("ptv3_enable_flash"): Bool(),
         Optional("ptv3_native_grid_size"): Float(),
-        Optional("randla_num_neighbors"): Int(),
-        Optional("randla_sub_sampling_ratio"): Seq(Int()),
-        Optional("randla_d_out"): Seq(Int()),
-        Optional("randla_dropout"): Float(),
     }
 )
 

@@ -60,10 +60,7 @@ def build(dataset_config,
         return_test=True,
     )
 
-    is_point_native = dataset_config['dataset_type'] in {
-        'ptv3_native_dataset_panop',
-        'point_native_dataset_panop',
-    }
+    is_point_native = dataset_config['dataset_type'] == 'ptv3_native_dataset_panop'
     train_collate_fn = collate_fn_ptv3_native if is_point_native else collate_fn_BEV
     val_collate_fn = collate_fn_ptv3_native_val if is_point_native else collate_fn_BEV_test
 

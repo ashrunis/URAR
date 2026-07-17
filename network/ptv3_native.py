@@ -2,11 +2,23 @@
 
 import torch
 from torch import nn
+from torch.nn import functional as F
 import torch_scatter
 
 from network.cylinder_spconv_3d import register_model
-from network.point_heads import PrototypeLinearHead
 from network.ptv3.model import PointTransformerV3
+
+
+class PrototypeLinearHead(nn.Module):
+    """Cosine classifier whose normalized weights act as class prototypes."""
+
+    def __init__(self, in_features, out_features):
+        super().__init__()
+        self.prototypes = nn.Parameter(torch.empty(out_features, in_features))
+        nn.init.xavier_uniform_(self.prototypes)
+
+    def forward(self, features):
+        return F.linear(F.normalize(features), F.normalize(self.prototypes))
 
 
 @register_model
