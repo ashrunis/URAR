@@ -61,10 +61,10 @@ val_data_loader:
 ###################
 ## Train params
 train_params:
-  model_load_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/nuscenes/urar/best_model.pt"  # path of pre-trained model
-  model_save_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/nuscenes/urar/best_model.pt"  # path to save the best training checkpoint
-  model_latest_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/nuscenes/urar/latest_model.pt"  # path to save the latest training checkpoint
-  checkpoint_every_n_steps: 7032
+  model_load_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/nuscenes/urar/02/best_model.pt"  # path of pre-trained model
+  model_save_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/nuscenes/urar/02/best_model.pt"  # path to save the best training checkpoint
+  model_latest_path: "/home/aqy/myproject/OWSS/DOSS/checkpoints/nuscenes/urar/02/latest_model.pt"  # path to save the latest training checkpoint
+  checkpoint_every_n_steps: 9376
   max_num_epochs: 20
-  eval_every_n_steps: 7032
+  eval_every_n_steps: 9376
   learning_rate: 0.001
