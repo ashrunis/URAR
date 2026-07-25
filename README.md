@@ -148,7 +148,7 @@ CUDA_VISIBLE_DEVICES=2,3 torchrun --nproc_per_node=2 --master_port 29501 train_c
 ### Inference
 
 ```bash
-python val_cylinder_asym_nusc_ood.py --config_path ../config/nuScenes_ood_final.yaml --save_folder ../exp/nuscenes/00/
+CUDA_VISIBLE_DEVICES=2 python val_cylinder_asym_nusc_ood.py --config_path ../config/nuScenes_ood_final.yaml --save_folder ../exp/nuscenes/urar/
 ```
 
 ### Evaluation
