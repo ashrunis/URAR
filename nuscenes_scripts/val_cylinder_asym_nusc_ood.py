@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 
 import argparse
+import math
 import os
 import sys
 import warnings
@@ -23,6 +24,10 @@ from utils.nuscenes_ood import (
 warnings.filterwarnings("ignore")
 
 SUPPORTED_VARIANTS = {"doss", "arm", "ugfr", "urar"}
+MAX_SCORE_THRESHOLD = 0.65
+ENTROPY_LOGIT_SCALE = 10.0
+ENTROPY_WEIGHT = 0.3
+ENTROPY_CALIBRATED_THRESHOLD = 0.5
 
 
 def sample_identifier(index):
@@ -31,6 +36,31 @@ def sample_identifier(index):
     if isinstance(index, np.generic):
         index = index.item()
     return f"{int(index):06d}"
+
+
+def gated_max_anomaly_score(point_logits):
+    max_values = torch.max(point_logits, dim=1).values
+    return torch.where(
+        max_values <= MAX_SCORE_THRESHOLD,
+        torch.ones_like(max_values),
+        torch.full_like(max_values, 0.1),
+    )
+
+
+def entropy_calibrated_anomaly_score(point_logits):
+    max_score = 1.0 - torch.max(point_logits, dim=1).values
+    probabilities = torch.softmax(point_logits * ENTROPY_LOGIT_SCALE, dim=1)
+    entropy = -torch.sum(
+        probabilities * torch.log(probabilities + 1e-12),
+        dim=1,
+    )
+    normalized_entropy = entropy / math.log(point_logits.shape[1])
+    calibrated_score = max_score + ENTROPY_WEIGHT * normalized_entropy
+    return torch.where(
+        calibrated_score >= ENTROPY_CALIBRATED_THRESHOLD,
+        torch.ones_like(calibrated_score),
+        torch.full_like(calibrated_score, 0.1),
+    )
 
 
 def main(args):
@@ -129,7 +159,8 @@ def main(args):
                     grid[:, 1],
                     grid[:, 2],
                 ].transpose(0, 1)
-                anomaly_score = 1.0 - torch.max(point_logits, dim=1).values
+                anomaly_score = gated_max_anomaly_score(point_logits)
+                # anomaly_score = entropy_calibrated_anomaly_score(point_logits)
                 anomaly_score.cpu().numpy().astype(np.float32).tofile(
                     os.path.join(anomaly_dir, output_name)
                 )

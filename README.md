@@ -103,18 +103,10 @@ cd semantickitti_scripts
 
 ### Train Cylinder3D Variants
 
-The shared trainer selects the model and loss path from `model_params.model_variant`. `doss` and `ugfr` use the DOSS center/contrastive objectives; `arm` and `urar` use the ARM ArcFace/Objectosphere objectives.
-
-Single GPU:
+The shared trainer selects the model and loss path from `model_params.model_variant`. `doss` and `ugfr` use the DOSS center/contrastive objectives; `arm` and `urar` use the ARM ArcFace/POC.
 
 ```bash
-CUDA_VISIBLE_DEVICES=6 python train_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml
-```
-
-DDP:
-
-```bash
-CUDA_VISIBLE_DEVICES=6,7 torchrun --nproc_per_node=2 --master_port 29500 train_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml
+CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2 --master_port 29500 train_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml
 ```
 
 ### Inference
@@ -122,7 +114,7 @@ CUDA_VISIBLE_DEVICES=6,7 torchrun --nproc_per_node=2 --master_port 29500 train_c
 `--save_folder` controls where CSS predictions and anomaly scores are written.
 
 ```bash
-python val_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml --save_folder ../exp/semantic_kitti/urar/
+CUDA_VISIBLE_DEVICES=0 python val_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml --save_folder ../exp/semantic_kitti/urar/
 ```
 
 ### Evaluation
@@ -150,12 +142,8 @@ cd nuscenes_scripts
 The shared trainer supports `doss`, `arm`, `ugfr`, and `urar`. The selected `model_variant` determines both the network and loss path.
 
 ```bash
-CUDA_VISIBLE_DEVICES=4,5 torchrun --nproc_per_node=2 --master_port 29501 \
-  train_cylinder_asym_nusc_ood.py \
-  --config_path ../config/nuScenes_ood_final.yaml
+CUDA_VISIBLE_DEVICES=2,3 torchrun --nproc_per_node=2 --master_port 29501 train_cylinder_asym_nusc_ood.py --config_path ../config/nuScenes_ood_final.yaml
 ```
-
-`batch_size` is per GPU. Both shared trainers validate after every epoch and save the latest and best checkpoints configured under `train_params`.
 
 ### Inference
 
@@ -170,7 +158,7 @@ cd nuscenes_api
 ```
 
 ```bash
-python evaluate_semantics.py --dataset ~/data/nuscenes/ --predictions ../exp/nuscenes/00/ --split valid
+python evaluate_semantics.py --dataset ~/data/nuscenes/ --predictions ../exp/nuscenes/urar/ --split valid
 ```
 
 ## Citation

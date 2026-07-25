@@ -1,184 +1,203 @@
 # -*- coding:utf-8 -*-
 
-import os
-import time
 import argparse
+import math
+import os
 import sys
-sys.path.append('..')
+import warnings
+
 import numpy as np
 import torch
 from tqdm import tqdm
-from scipy.special import softmax
 
-from utils.metric_util import per_class_iu, fast_hist_crop
+sys.path.append("..")
+
 from builder import data_builder, model_builder
 from config.config import load_config_data
+from utils.load_save_util import load_checkpoint
+from utils.metric_util import fast_hist_crop, per_class_iu
 from utils.semantickitti_unknown import (
     get_unknown_label_metadata,
     restore_known_predictions,
 )
 
-from utils.load_save_util import load_checkpoint
-
-import warnings
-
-import torch.nn.functional as F
-
 warnings.filterwarnings("ignore")
+
+SUPPORTED_VARIANTS = {"doss", "arm", "ugfr", "urar"}
+MAX_SCORE_THRESHOLD = 0.4
+ENTROPY_LOGIT_SCALE = 10.0
+ENTROPY_WEIGHT = 0.3
+ENTROPY_CALIBRATED_THRESHOLD = 0.5
+
+
+def sample_identifier(index):
+    if torch.is_tensor(index):
+        index = index.item()
+    if isinstance(index, np.generic):
+        index = index.item()
+    return f"{int(index):06d}"
+
+
+def gated_max_anomaly_score(point_logits):
+    max_values = torch.max(point_logits, dim=1).values
+    return torch.where(
+        max_values <= MAX_SCORE_THRESHOLD,
+        torch.ones_like(max_values),
+        torch.full_like(max_values, 0.1),
+    )
+
+
+def entropy_calibrated_anomaly_score(point_logits):
+    max_score = 1.0 - torch.max(point_logits, dim=1).values
+    probabilities = torch.softmax(point_logits * ENTROPY_LOGIT_SCALE, dim=1)
+    entropy = -torch.sum(
+        probabilities * torch.log(probabilities + 1e-12),
+        dim=1,
+    )
+    normalized_entropy = entropy / math.log(point_logits.shape[1])
+    calibrated_score = max_score + ENTROPY_WEIGHT * normalized_entropy
+    return torch.where(
+        calibrated_score >= ENTROPY_CALIBRATED_THRESHOLD,
+        torch.ones_like(calibrated_score),
+        torch.full_like(calibrated_score, 0.1),
+    )
 
 
 def main(args):
-    pytorch_device = torch.device('cuda:0')
+    device = torch.device("cuda", 0)
+    configs = load_config_data(args.config_path)
+    dataset_config = configs["dataset_params"]
+    train_config = configs["train_data_loader"]
+    val_config = configs["val_data_loader"]
+    model_config = configs["model_params"]
+    train_params = configs["train_params"]
 
-    config_path = args.config_path
+    model_variant = str(model_config.get("model_variant", "")).lower()
+    if model_variant not in SUPPORTED_VARIANTS:
+        raise ValueError(
+            f"This script requires model_params.model_variant in "
+            f"{sorted(SUPPORTED_VARIANTS)}, got '{model_variant}'."
+        )
 
-    configs = load_config_data(config_path)
-
-    dataset_config = configs['dataset_params']
-    train_dataloader_config = configs['train_data_loader']
-    val_dataloader_config = configs['val_data_loader']
-
-    val_batch_size = val_dataloader_config['batch_size']
-    train_batch_size = train_dataloader_config['batch_size']
-
-    model_config = configs['model_params']
-    train_hypers = configs['train_params']
-
-    unknown_label_meta = get_unknown_label_metadata(
+    metadata = get_unknown_label_metadata(
         dataset_config["label_mapping"],
         dataset_config.get("unknown_label"),
         dataset_config.get("unknown_labels"),
     )
-    inferred_num_class = unknown_label_meta["num_known_classes"]
-    if model_config['num_class'] != inferred_num_class:
+    configured_classes = model_config["num_class"]
+    model_config["num_class"] = metadata["num_known_classes"]
+    if configured_classes != model_config["num_class"]:
         print(
-            f"Adjusting model num_class from {model_config['num_class']} "
-            f"to {inferred_num_class} based on unknown labels "
-            f"{unknown_label_meta['unknown_labels']}."
+            f"Adjusting num_class from {configured_classes} to "
+            f"{model_config['num_class']} for unknown labels "
+            f"{metadata['unknown_labels']}."
         )
-        model_config['num_class'] = inferred_num_class
+    print(f"Unknown labels: {metadata['unknown_labels_display']}")
 
-    grid_size = model_config['output_shape']
-    num_class = model_config['num_class']
-    ignore_label = dataset_config['ignore_label']
-
-    model_load_path = train_hypers['model_load_path']
-
-    pred_save_folder = os.path.join(args.save_folder, 'CSS_results/sequences/08/predictions/')
-    ad_save_folder = os.path.join(args.save_folder, 'AnomalyDetection_results/sequences/08/predictions/')
-
-    os.makedirs(pred_save_folder, exist_ok=True)
-    os.makedirs(ad_save_folder, exist_ok=True)
-
-    known_labels = unknown_label_meta["known_labels"]
-    known_label_indices = unknown_label_meta["known_label_indices"]
-    known_label_names = unknown_label_meta["known_label_names"]
-    print(
-        f"Using SemanticKITTI unknown labels: "
-        f"{unknown_label_meta['unknown_labels_display']}"
+    prediction_dir = os.path.join(
+        args.save_folder,
+        "CSS_results/sequences/08/predictions",
     )
+    anomaly_dir = os.path.join(
+        args.save_folder,
+        "AnomalyDetection_results/sequences/08/predictions",
+    )
+    os.makedirs(prediction_dir, exist_ok=True)
+    os.makedirs(anomaly_dir, exist_ok=True)
 
-    my_model = model_builder.build(model_config)
+    checkpoint_path = train_params["model_load_path"]
+    if not os.path.exists(checkpoint_path):
+        latest_path = train_params.get("model_latest_path")
+        if latest_path and os.path.exists(latest_path):
+            checkpoint_path = latest_path
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
-    try:
-        print(f"Loading pre-trained model {model_load_path}")
-        my_model = load_checkpoint(model_load_path, my_model)
-    except Exception as e:
-        print(e)
-        print("Error loading pre-trained model.")
-        quit()
+    model = model_builder.build(model_config)
+    print(f"Loading checkpoint {checkpoint_path}")
+    model = load_checkpoint(checkpoint_path, model)
+    model.to(device)
+    model.eval()
 
-    my_model.to(pytorch_device)
-
-    train_dataset_loader, val_dataset_loader = data_builder.build(dataset_config,
-                                                                  train_dataloader_config,
-                                                                  val_dataloader_config,
-                                                                  grid_size=grid_size)
-
-    my_model.eval()
-    hist_list = []
-    pbar = tqdm(total=len(val_dataset_loader), dynamic_ncols=True)
+    _, val_loader = data_builder.build(
+        dataset_config,
+        train_config,
+        val_config,
+        grid_size=model_config["output_shape"],
+    )
+    known_labels = metadata["known_labels"]
+    known_label_indices = metadata["known_label_indices"]
+    histogram = np.zeros(
+        (len(known_labels), len(known_labels)),
+        dtype=np.int64,
+    )
+    progress = tqdm(total=len(val_loader), dynamic_ncols=True)
 
     with torch.no_grad():
-        for i_iter_val, (_, val_vox_label, val_grid, val_pt_labs, val_pt_fea, idx) in enumerate(
-                val_dataset_loader):
+        for _, _, grids, point_labels, point_features, indices in val_loader:
+            feature_tensors = [
+                torch.as_tensor(features, dtype=torch.float32, device=device)
+                for features in point_features
+            ]
+            grid_tensors = [torch.as_tensor(grid, device=device) for grid in grids]
+            _, css_logits, oss_logits = model(
+                feature_tensors,
+                grid_tensors,
+                len(feature_tensors),
+            )
+            predictions = restore_known_predictions(
+                torch.argmax(css_logits, dim=1).cpu().numpy(),
+                known_labels,
+            )
 
-            val_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in val_pt_fea]
-            val_grid_ten = [torch.from_numpy(i).to(pytorch_device) for i in val_grid]
+            for sample_index, grid in enumerate(grids):
+                point_prediction = predictions[
+                    sample_index,
+                    grid[:, 0],
+                    grid[:, 1],
+                    grid[:, 2],
+                ]
+                histogram += fast_hist_crop(
+                    point_prediction,
+                    point_labels[sample_index],
+                    known_label_indices,
+                )
+                output_name = sample_identifier(indices[sample_index]) + ".label"
+                point_prediction.astype(np.int32).tofile(
+                    os.path.join(prediction_dir, output_name)
+                )
 
-            coor_ori, y_in_normal, y_out_normal = my_model(val_pt_fea_ten, val_grid_ten, val_batch_size)
+                point_logits = oss_logits[
+                    sample_index,
+                    :,
+                    grid[:, 0],
+                    grid[:, 1],
+                    grid[:, 2],
+                ].transpose(0, 1)
+                anomaly_score = gated_max_anomaly_score(point_logits)
+                # anomaly_score = entropy_calibrated_anomaly_score(point_logits)
+                anomaly_score.cpu().numpy().astype(np.float32).tofile(
+                    os.path.join(anomaly_dir, output_name)
+                )
+            progress.update(1)
 
-            batch = 0
-
-            idx_s = "%06d" % idx[0]
-
-            y_in_normal = torch.argmax(y_in_normal, dim=1)
-            y_in_normal = y_in_normal.cpu().detach().numpy()
-
-            y_in_normal = restore_known_predictions(y_in_normal, known_labels)
-
-            for count, i_val_grid in enumerate(val_grid):
-                hist_list.append(fast_hist_crop(y_in_normal[
-                                                    count, val_grid[count][:, 0], val_grid[count][:, 1],
-                                                    val_grid[count][:, 2]], val_pt_labs[count],
-                                                known_label_indices))
-
-            count = 0
-
-            point_predict = y_in_normal[count, val_grid[count][:, 0], val_grid[count][:, 1], val_grid[count][:, 2]].astype(np.int32)
-
-            point_predict.tofile(os.path.join(pred_save_folder, idx_s + '.label'))
-
-            # Anomaly detection
-            y_out_normal_pointwise = y_out_normal[batch, :, val_grid[batch][:, 0], val_grid[batch][:, 1], val_grid[batch][:, 2]].permute(1, 0).cpu().numpy()
-
-            # max_values = np.max(y_out_normal_pointwise, axis=1)
-            # conf_score = np.where(max_values <= 0.4, 1.0, 0.1)
-
-            # norm_values = np.linalg.norm(y_out_normal_pointwise, axis=1)
-            # conf_score = np.where(norm_values <= 1.0, 1.0, 0.1)
-            
-            conf_score = 1.0 - np.max(y_out_normal_pointwise, axis=1)
-
-            # conf_score = 1.0 - np.linalg.norm(np.maximum(y_out_normal_pointwise, 0.0), axis=1)
-
-            # s_scale = 10.0
-            # scaled_logits = y_out_normal_pointwise * s_scale
-            # probs = softmax(scaled_logits, axis=1)
-            # entropy = -np.sum(probs * np.log(probs + 1e-12), axis=1)
-
-            # num_classes = y_out_normal_pointwise.shape[1]
-            # max_entropy = np.log(num_classes)
-            # norm_entropy = entropy / max_entropy
-
-            # lambda_ent = 0.3
-            # conf_score = conf_score + lambda_ent * norm_entropy
-            
-            # conf_score = np.where(conf_score >= 0.5, 1.0, 0.1)
-
-            conf_score = conf_score.astype(np.float32)
-            ad_save_file = os.path.join(ad_save_folder, idx_s + ".label")
-            conf_score.tofile(ad_save_file)
-
-            pbar.update(1)
-    iou = per_class_iu(sum(hist_list))
-    val_miou = np.nanmean(iou) * 100
-    print('Validation per class iou: ')
-    for class_name, class_iou in zip(known_label_names, iou):
-        print('%s : %.2f%%' % (class_name, class_iou * 100))
-    del val_vox_label, val_grid, val_pt_fea, val_grid_ten
-
-    print('Current val miou is %.3f' %
-          (val_miou))
+    progress.close()
+    iou = per_class_iu(histogram)
+    print("Validation per-class known IoU:")
+    for class_name, class_iou in zip(metadata["known_label_names"], iou):
+        print(f"{class_name}: {class_iou * 100:.2f}%")
+    print(f"Known-class mIoU: {np.nanmean(iou) * 100:.3f}")
 
 
-if __name__ == '__main__':
-    # Training settings
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-y', '--config_path', default='../config/semantickitti_ood_final.yaml')
-    parser.add_argument('--save_folder', default='../ow3d_data/SemanticKITTI/')
-    args = parser.parse_args()
-
-    print(' '.join(sys.argv))
-    print(args)
-    main(args)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-y",
+        "--config_path",
+        default="../config/semantickitti_ood_final.yaml",
+    )
+    parser.add_argument("--save_folder", default="../ow3d_data/SemanticKITTI/")
+    arguments = parser.parse_args()
+    print(" ".join(sys.argv))
+    print(arguments)
+    main(arguments)
