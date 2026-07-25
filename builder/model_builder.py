@@ -1,21 +1,18 @@
 # -*- coding:utf-8 -*-
 
 from network.cylinder_spconv_3d import get_model_class
-from network.segmentator_3d_asymm_spconv import Asymm_3d_spconv as DOSSAsymm3dSpconv
-from network.segmentator_3d_asymm_spconv_fr import Asymm_3d_spconv as FRAsymm3dSpconv
-from network.segmentator_3d_asymm_spconv_ugfa import Asymm_3d_spconv as UGFAAsymm3dSpconv
-from network.segmentator_3d_asymm_spconv_fr_ugfa import Asymm_3d_spconv as FRUGFAAsymm3dSpconv
+from network.segmentator_3d_asymm_spconv import Asymm_3d_spconv
 from network.cylinder_fea_generator import cylinder_fea
 import network.ptv3_native
 
 
-MODEL_VARIANTS = {
-    "doss": DOSSAsymm3dSpconv,
-    "fr": FRAsymm3dSpconv,
-    "ugfa": UGFAAsymm3dSpconv,
-    "fr_ugfa": FRUGFAAsymm3dSpconv,
-    "ptv3_native": None,
+CYLINDER_VARIANTS = {
+    "doss": {"use_arcface": False, "use_ugfa": False},
+    "fr": {"use_arcface": True, "use_ugfa": False},
+    "ugfa": {"use_arcface": False, "use_ugfa": True},
+    "fr_ugfa": {"use_arcface": True, "use_ugfa": True},
 }
+MODEL_VARIANTS = set(CYLINDER_VARIANTS) | {"ptv3_native"}
 
 
 def build(model_config):
@@ -35,13 +32,12 @@ def build(model_config):
     if model_variant == "ptv3_native":
         return get_model_class("ptv3_native_asym")(model_config)
 
-    segmentator_class = MODEL_VARIANTS[model_variant]
-
-    cylinder_3d_spconv_seg = segmentator_class(
+    cylinder_3d_spconv_seg = Asymm_3d_spconv(
         output_shape=output_shape,
         num_input_features=num_input_features,
         init_size=init_size,
-        nclasses=num_class)
+        nclasses=num_class,
+        **CYLINDER_VARIANTS[model_variant])
 
     cy_fea_net = cylinder_fea(grid_size=output_shape,
                               fea_dim=fea_dim,

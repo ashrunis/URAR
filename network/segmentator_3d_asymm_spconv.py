@@ -245,9 +245,68 @@ class ReconBlock(nn.Module):
         return shortcut
 
 
+class PrototypeLinearHead(nn.Module):
+    def __init__(self, in_features, out_features):
+        super().__init__()
+        self.prototypes = nn.Parameter(torch.empty(out_features, in_features))
+        nn.init.xavier_uniform_(self.prototypes)
+
+    def forward(self, features):
+        return F.linear(F.normalize(features), F.normalize(self.prototypes))
+
+
+class UGFAModule(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.conv_gamma = spconv.SubMConv3d(
+            in_channels,
+            in_channels,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=True,
+        )
+        self.conv_beta = spconv.SubMConv3d(
+            in_channels,
+            in_channels,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            bias=True,
+        )
+        nn.init.zeros_(self.conv_gamma.weight)
+        nn.init.zeros_(self.conv_gamma.bias)
+        nn.init.zeros_(self.conv_beta.weight)
+        nn.init.zeros_(self.conv_beta.bias)
+        self.eps = 1e-5
+
+    def sparse_instance_norm(self, sparse_tensor):
+        features = sparse_tensor.features
+        batch_ids = sparse_tensor.indices[:, 0]
+        normalized = torch.empty_like(features)
+        for batch_index in range(sparse_tensor.batch_size):
+            mask = batch_ids == batch_index
+            if not torch.any(mask):
+                continue
+            sample_features = features[mask].float()
+            mean = sample_features.mean(dim=0, keepdim=True)
+            variance = sample_features.var(dim=0, unbiased=False, keepdim=True)
+            normalized[mask] = (
+                (sample_features - mean) * torch.rsqrt(variance + self.eps)
+            ).to(features.dtype)
+        return normalized
+
+    def forward(self, f_css, f_oss):
+        gamma = self.conv_gamma(f_oss).features
+        beta = self.conv_beta(f_oss).features
+        normalized = self.sparse_instance_norm(f_css)
+        return f_css.replace_feature(f_css.features + normalized * gamma + beta)
+
+
 class Decoder(nn.Module):
-    def __init__(self, init_size=16, nclasses=18, indice_key=None):
+    def __init__(self, init_size=16, nclasses=18, indice_key=None, arcface=False):
         super(Decoder, self).__init__()
+        self.arcface = arcface
         self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key=indice_key+"upD0", up_key="down5")
         self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key=indice_key+"upD1", up_key="down4")
         self.upBlock2 = UpBlock(8 * init_size, 4 * init_size, indice_key=indice_key+"upD2", up_key="down3")
@@ -255,9 +314,18 @@ class Decoder(nn.Module):
 
         self.ReconNet = ReconBlock(2 * init_size, 2 * init_size, indice_key=indice_key+"reconD")
 
-        self.logits = spconv.SubMConv3d(4 * init_size, nclasses, indice_key=indice_key+"logitD", kernel_size=3, stride=1, padding=1, bias=True)
+        if arcface:
+            self.logits_arcface = PrototypeLinearHead(4 * init_size, nclasses)
+        else:
+            self.logits = spconv.SubMConv3d(4 * init_size, nclasses, indice_key=indice_key+"logitD", kernel_size=3, stride=1, padding=1, bias=True)
 
-    def forward(self, x):
+    def classify(self, sparse_features):
+        if self.arcface:
+            logits = self.logits_arcface(sparse_features.features)
+            return sparse_features.replace_feature(logits).dense()
+        return self.logits(sparse_features).dense()
+
+    def forward(self, x, ugfa_module=None, oss_features=None, return_features=False):
         down1b, down2b, down3b, down4b, down4c = x
         up4e = self.upBlock0(down4c, down4b)
         up3e = self.upBlock1(up4e, down3b)
@@ -267,19 +335,23 @@ class Decoder(nn.Module):
         up0e = self.ReconNet(up1e)
 
         up0e = up0e.replace_feature(torch.cat((up0e.features, up1e.features), 1))
+        if ugfa_module is not None and oss_features is not None:
+            up0e = ugfa_module(f_css=up0e, f_oss=oss_features)
+        if return_features:
+            return up0e
 
-        logits = self.logits(up0e)
-        logits = logits.dense()
-        return logits
+        return self.classify(up0e)
 
 
 class Asymm_3d_spconv(nn.Module):
     def __init__(self,
                  output_shape,
                  num_input_features=128,
-                 nclasses=20, init_size=16):
+                 nclasses=20, init_size=16,
+                 use_arcface=False, use_ugfa=False):
         super(Asymm_3d_spconv, self).__init__()
         self.nclasses = nclasses
+        self.use_ugfa = use_ugfa
 
         sparse_shape = np.array(output_shape)
 
@@ -292,10 +364,13 @@ class Asymm_3d_spconv(nn.Module):
         self.resBlock5 = ResBlock(8 * init_size, 16 * init_size, 0.2, pooling=True, height_pooling=False, indice_key="down5")
 
         # semantic decoder
-        self.decoder_cw = Decoder(init_size=init_size, nclasses=nclasses, indice_key="decode_c_up")
+        self.decoder_cw = Decoder(init_size=init_size, nclasses=nclasses, indice_key="decode_c_up", arcface=False)
         
         # open-set decoder
-        self.decoder_ow = Decoder(init_size=init_size, nclasses=nclasses, indice_key="decode_o_up")
+        self.decoder_ow = Decoder(init_size=init_size, nclasses=nclasses, indice_key="decode_o_up", arcface=use_arcface)
+
+        if use_ugfa:
+            self.ugfa_module = UGFAModule(in_channels=4 * init_size)
 
     def forward_ow(self, voxel_features, coors, batch_size):
         coors = coors.int()
@@ -310,6 +385,15 @@ class Asymm_3d_spconv(nn.Module):
 
         outs = [down1b, down2b, down3b, down4b, down4c]
 
-        y_in = self.decoder_cw(outs)
-        y_out = self.decoder_ow(outs)
+        if self.use_ugfa:
+            feature_oss = self.decoder_ow(outs, return_features=True)
+            y_in = self.decoder_cw(
+                outs,
+                ugfa_module=self.ugfa_module,
+                oss_features=feature_oss,
+            )
+            y_out = self.decoder_ow.classify(feature_oss)
+        else:
+            y_in = self.decoder_cw(outs)
+            y_out = self.decoder_ow(outs)
         return coor_ori, y_in, y_out

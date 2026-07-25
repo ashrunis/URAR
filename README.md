@@ -12,9 +12,9 @@ config/                  Experiment configs and label mappings
 dataloader/              SemanticKITTI and nuScenes dataloaders
 network/                 Cylinder3D, DOSS, FR, UGFA/URAR network definitions
 semantickitti_scripts/   SemanticKITTI train and inference scripts
-nuScenes_scripts/        nuScenes train and inference scripts
+nuscenes_scripts/        nuScenes train and inference scripts
 semantic_kitti_api/      SemanticKITTI offline evaluation utilities
-nuScenes_api/            nuScenes offline evaluation utilities
+nuscenes_api/            nuScenes offline evaluation utilities
 utils/                   Losses, metrics, checkpoint helpers, unknown-label helpers
 ```
 
@@ -63,10 +63,10 @@ model_params:
 Available variants:
 
 ```text
-doss      network/segmentator_3d_asymm_spconv.py          DOSS baseline
-fr        network/segmentator_3d_asymm_spconv_fr.py       Angular/prototype head variant
-ugfa      network/segmentator_3d_asymm_spconv_ugfa.py     UGFA-only variant
-fr_ugfa   network/segmentator_3d_asymm_spconv_fr_ugfa.py  Full proposed model
+doss      network/segmentator_3d_asymm_spconv.py  DOSS baseline
+fr        network/segmentator_3d_asymm_spconv.py  Angular/prototype head variant
+ugfa      network/segmentator_3d_asymm_spconv.py  UGFA-only variant
+fr_ugfa   network/segmentator_3d_asymm_spconv.py  Full proposed model
 ptv3_native network/ptv3_native.py                         Point-level Cartesian PTv3 with CSS/OSS decoders
 ```
 
@@ -114,13 +114,13 @@ The shared trainer selects the model and loss path from `model_params.model_vari
 Single GPU:
 
 ```bash
-CUDA_VISIBLE_DEVICES=6 python train_cylinder_asym_ood_ddp.py --config_path ../config/semantickitti_ood_final.yaml
+CUDA_VISIBLE_DEVICES=6 python train_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml
 ```
 
 DDP:
 
 ```bash
-CUDA_VISIBLE_DEVICES=6,7 torchrun --nproc_per_node=2 --master_port 29500 train_cylinder_asym_ood_ddp.py --config_path ../config/semantickitti_ood_final.yaml
+CUDA_VISIBLE_DEVICES=6,7 torchrun --nproc_per_node=2 --master_port 29500 train_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml
 ```
 
 ### Train Native PTv3
@@ -128,7 +128,7 @@ CUDA_VISIBLE_DEVICES=6,7 torchrun --nproc_per_node=2 --master_port 29500 train_c
 Use `config/semantickitti_ood_ptv3.yaml`, which selects `model_variant: "ptv3_native"` and the native point dataset wrapper.
 
 ```bash
-CUDA_VISIBLE_DEVICES=2,3 torchrun --nproc_per_node=2 --master_port 29502 train_ptv3_native_ood_fr_ddp.py --config_path ../config/semantickitti_ood_ptv3.yaml
+CUDA_VISIBLE_DEVICES=2,3 torchrun --nproc_per_node=2 --master_port 29502 train_ptv3_native_ood.py --config_path ../config/semantickitti_ood_ptv3.yaml
 ```
 
 For single-GPU debugging, run the same script with `CUDA_VISIBLE_DEVICES=0 python` instead of `torchrun`.
@@ -160,28 +160,19 @@ python evaluate_semantics.py --dataset ~/data/SemanticKITTI/dataset --prediction
 
 ## nuScenes
 
-Run commands from `nuScenes_scripts/`.
+Run commands from `nuscenes_scripts/`.
 
 ```bash
-cd nuScenes_scripts
+cd nuscenes_scripts
 ```
 
 ### Train
 
 The shared trainer supports `doss`, `fr`, `ugfa`, and `fr_ugfa`. The selected `model_variant` determines both the network and loss path.
 
-Single GPU:
-
-```bash
-CUDA_VISIBLE_DEVICES=0 python train_cylinder_asym_nusc_ood_ddp.py \
-  --config_path ../config/nuScenes_ood_final.yaml
-```
-
-DDP:
-
 ```bash
 CUDA_VISIBLE_DEVICES=4,5 torchrun --nproc_per_node=2 --master_port 29501 \
-  train_cylinder_asym_nusc_ood_ddp.py \
+  train_cylinder_asym_nusc_ood.py \
   --config_path ../config/nuScenes_ood_final.yaml
 ```
 
@@ -196,7 +187,7 @@ python val_cylinder_asym_nusc_ood.py --config_path ../config/nuScenes_ood_final.
 ### Evaluation
 
 ```bash
-cd nuScenes_api
+cd nuscenes_api
 ```
 
 ```bash
