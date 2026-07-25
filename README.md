@@ -107,28 +107,20 @@ Run commands from `semantickitti_scripts/`.
 cd semantickitti_scripts
 ```
 
-### Train DOSS Baseline
+### Train Cylinder3D Variants
 
-Set `model_params.model_variant: "doss"` for the Cylinder3D baseline.
-
-```bash
-CUDA_VISIBLE_DEVICES=6 python train_cylinder_asym_ood.py --config_path ../config/semantickitti_ood_final.yaml
-```
-
-### Train Proposed Model
-
-Set `model_params.model_variant: "fr_ugfa"` for the full model, or use `fr` / `ugfa` for module-level ablations.
+The shared trainer selects the model and loss path from `model_params.model_variant`. `doss` and `ugfa` use the DOSS center/contrastive objectives; `fr` and `fr_ugfa` use ArcFace.
 
 Single GPU:
 
 ```bash
-CUDA_VISIBLE_DEVICES=6 python train_cylinder_asym_ood_fr.py --config_path ../config/semantickitti_ood_final.yaml
+CUDA_VISIBLE_DEVICES=6 python train_cylinder_asym_ood_ddp.py --config_path ../config/semantickitti_ood_final.yaml
 ```
 
 DDP:
 
 ```bash
-CUDA_VISIBLE_DEVICES=6,7 torchrun --nproc_per_node=2 --master_port 29500 train_cylinder_asym_ood_fr_ddp.py --config_path ../config/semantickitti_ood_final.yaml
+CUDA_VISIBLE_DEVICES=6,7 torchrun --nproc_per_node=2 --master_port 29500 train_cylinder_asym_ood_ddp.py --config_path ../config/semantickitti_ood_final.yaml
 ```
 
 ### Train Native PTv3
@@ -174,33 +166,26 @@ Run commands from `nuScenes_scripts/`.
 cd nuScenes_scripts
 ```
 
-### Train DOSS Baseline
+### Train
 
-Set `model_params.model_variant: "doss"` for the Cylinder3D baseline.
-
-```bash
-CUDA_VISIBLE_DEVICES=0 python train_cylinder_asym_nusc_ood.py \
-  --config_path ../config/nuScenes_ood_final.yaml
-```
-
-### Train Proposed Model
-
-Set `model_params.model_variant: "fr_ugfa"` for the full model, or use `fr` / `ugfa` for module-level ablations.
+The shared trainer supports `doss`, `fr`, `ugfa`, and `fr_ugfa`. The selected `model_variant` determines both the network and loss path.
 
 Single GPU:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python train_cylinder_asym_nusc_ood_fr.py \
+CUDA_VISIBLE_DEVICES=0 python train_cylinder_asym_nusc_ood_ddp.py \
   --config_path ../config/nuScenes_ood_final.yaml
 ```
 
 DDP:
 
 ```bash
-CUDA_VISIBLE_DEVICES=4,5 torchrun --nproc_per_node=2 \
-  train_cylinder_asym_nusc_ood_fr_ddp.py \
+CUDA_VISIBLE_DEVICES=4,5 torchrun --nproc_per_node=2 --master_port 29501 \
+  train_cylinder_asym_nusc_ood_ddp.py \
   --config_path ../config/nuScenes_ood_final.yaml
 ```
+
+`batch_size` is per GPU. Both shared trainers validate after every epoch and save the latest and best checkpoints configured under `train_params`.
 
 ### Inference
 

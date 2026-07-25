@@ -74,6 +74,8 @@ def get_unknown_label_metadata(
     unique_label = np.asarray(valid_learning_labels) - 1
     unique_label_str = [learning_label_names[label] for label in valid_learning_labels]
     known_labels = [label for label in valid_learning_labels if label not in unknown_labels]
+    known_label_indices = np.asarray(known_labels) - 1
+    known_label_names = [learning_label_names[label] for label in known_labels]
 
     return {
         "unknown_label": unknown_labels[0],
@@ -84,6 +86,8 @@ def get_unknown_label_metadata(
             f"{label} ({learning_label_names[label]})" for label in unknown_labels
         ),
         "known_labels": known_labels,
+        "known_label_indices": known_label_indices,
+        "known_label_names": known_label_names,
         "num_known_classes": expected_known_classes,
         "unique_label": unique_label,
         "unique_label_str": unique_label_str,

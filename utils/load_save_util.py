@@ -5,7 +5,7 @@ import torch
 
 def load_checkpoint(model_load_path, model):
     my_model_dict = model.state_dict()
-    pre_weight = torch.load(model_load_path)
+    pre_weight = torch.load(model_load_path, map_location="cpu")
 
     part_load = {}
     match_size = 0
@@ -29,7 +29,7 @@ def load_checkpoint(model_load_path, model):
 
 def load_checkpoint_1b1(model_load_path, model):
     my_model_dict = model.state_dict()
-    pre_weight = torch.load(model_load_path)
+    pre_weight = torch.load(model_load_path, map_location="cpu")
 
     part_load = {}
     match_size = 0

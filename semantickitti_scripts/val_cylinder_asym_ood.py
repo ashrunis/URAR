@@ -71,8 +71,8 @@ def main(args):
     os.makedirs(ad_save_folder, exist_ok=True)
 
     known_labels = unknown_label_meta["known_labels"]
-    unique_label = unknown_label_meta["unique_label"]
-    unique_label_str = unknown_label_meta["unique_label_str"]
+    known_label_indices = unknown_label_meta["known_label_indices"]
+    known_label_names = unknown_label_meta["known_label_names"]
     print(
         f"Using SemanticKITTI unknown labels: "
         f"{unknown_label_meta['unknown_labels_display']}"
@@ -121,7 +121,7 @@ def main(args):
                 hist_list.append(fast_hist_crop(y_in_normal[
                                                     count, val_grid[count][:, 0], val_grid[count][:, 1],
                                                     val_grid[count][:, 2]], val_pt_labs[count],
-                                                unique_label))
+                                                known_label_indices))
 
             count = 0
 
@@ -164,7 +164,7 @@ def main(args):
     iou = per_class_iu(sum(hist_list))
     val_miou = np.nanmean(iou) * 100
     print('Validation per class iou: ')
-    for class_name, class_iou in zip(unique_label_str, iou):
+    for class_name, class_iou in zip(known_label_names, iou):
         print('%s : %.2f%%' % (class_name, class_iou * 100))
     del val_vox_label, val_grid, val_pt_fea, val_grid_ten
 

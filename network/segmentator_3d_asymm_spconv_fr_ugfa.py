@@ -397,13 +397,6 @@ class Asymm_3d_spconv(nn.Module):
         self.resBlock4 = ResBlock(4 * init_size, 8 * init_size, 0.2, pooling=True, height_pooling=False, indice_key="down4")
         self.resBlock5 = ResBlock(8 * init_size, 16 * init_size, 0.2, pooling=True, height_pooling=False, indice_key="down5")
 
-        self.upBlock0 = UpBlock(16 * init_size, 16 * init_size, indice_key="up0", up_key="down5")
-        self.upBlock1 = UpBlock(16 * init_size, 8 * init_size, indice_key="up1", up_key="down4")
-        self.upBlock2 = UpBlock(8 * init_size, 4 * init_size, indice_key="up2", up_key="down3")
-        self.upBlock3 = UpBlock(4 * init_size, 2 * init_size, indice_key="up3", up_key="down2")
-
-        self.ReconNet = ReconBlock(2 * init_size, 2 * init_size, indice_key="recon")
-
         # semantic decoder
         self.decoder_cw = Decoder(init_size=init_size, nclasses=nclasses, indice_key="decode_c_up", arcface=False)
         
@@ -446,4 +439,3 @@ class Asymm_3d_spconv(nn.Module):
         y_out = y_out.dense() # 转为 Dense Tensor 输出
 
         return coor_ori, y_in, y_out
-

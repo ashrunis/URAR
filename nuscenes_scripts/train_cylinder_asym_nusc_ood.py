@@ -24,10 +24,9 @@ from config.config import load_config_data
 from utils import loss_functions
 from utils.load_save_util import load_checkpoint
 from utils.metric_util import fast_hist_crop, per_class_iu
-from utils.semantickitti_unknown import (
-    build_objectosphere_labels,
-    collapse_unknown_label,
-    get_unknown_label_metadata,
+from utils.nuscenes_ood import (
+    get_nuscenes_ood_metadata,
+    mapping_tensor,
     restore_known_predictions,
 )
 
@@ -82,7 +81,8 @@ def compute_losses(
     oss_logits,
     coordinates,
     raw_voxel_labels,
-    unknown_labels,
+    ood_map,
+    objectosphere_map,
     is_angular,
     is_train,
     semantic_loss,
@@ -94,20 +94,17 @@ def compute_losses(
     mavs=None,
     loss_epoch=0,
 ):
-    css_voxel_labels = collapse_unknown_label(raw_voxel_labels, unknown_labels)
+    css_voxel_labels = ood_map[raw_voxel_labels]
     point_css_labels = active_voxel_labels(css_voxel_labels, coordinates)
     css_point_logits = active_voxel_values(css_logits, coordinates)
     oss_point_logits = active_voxel_values(oss_logits, coordinates)
 
     loss_semantic = sum(semantic_loss(css_point_logits, point_css_labels))
     loss_semantic += lovasz_loss(
-        torch.softmax(css_logits, dim=1),
-        css_voxel_labels - 1,
-        ignore=-1,
+        torch.softmax(css_logits, dim=1), css_voxel_labels - 1, ignore=-1
     )
-    objectosphere_labels = build_objectosphere_labels(
-        active_voxel_labels(raw_voxel_labels, coordinates),
-        unknown_labels,
+    objectosphere_labels = active_voxel_labels(
+        objectosphere_map[raw_voxel_labels], coordinates
     )
     loss_objectosphere = objectosphere_loss(oss_point_logits, objectosphere_labels)
     semantic_labels = point_css_labels - 1
@@ -124,7 +121,7 @@ def compute_losses(
     )
     return (
         loss_semantic
-        + 0.3 * loss_objectosphere
+        + 0.5 * loss_objectosphere
         + 0.3 * loss_center
         + 0.5 * loss_contrastive
     )
@@ -232,16 +229,15 @@ def main(args):
         )
     is_angular = model_variant in ANGULAR_VARIANTS
 
-    unknown_meta = get_unknown_label_metadata(
-        dataset_config["label_mapping"],
-        dataset_config.get("unknown_label"),
-        dataset_config.get("unknown_labels"),
-    )
-    model_config["num_class"] = unknown_meta["num_known_classes"]
+    metadata = get_nuscenes_ood_metadata(dataset_config["label_mapping"])
+    configured_classes = model_config["num_class"]
+    model_config["num_class"] = metadata["num_known_classes"]
     num_classes = model_config["num_class"]
-    known_labels = unknown_meta["known_labels"]
-    known_label_indices = unknown_meta["known_label_indices"]
-    class_names = unknown_meta["known_label_names"]
+    known_labels = metadata["known_labels"]
+    known_label_indices = metadata["known_label_indices"]
+    class_names = metadata["known_label_names"]
+    ood_map = mapping_tensor(metadata["ood_map"], device)
+    objectosphere_map = mapping_tensor(metadata["ood_obj_map"], device)
 
     latest_path = train_params["model_latest_path"]
     checkpoint_dir = os.path.dirname(latest_path)
@@ -254,10 +250,14 @@ def main(args):
         shutil.copy(args.config_path, os.path.join(checkpoint_dir, "config.yaml"))
         loss_path = "ArcFace" if is_angular else "DOSS center/contrastive"
         print(
-            f"Cylinder3D: variant={model_variant}, loss_path={loss_path}, "
+            f"Cylinder3D nuScenes: variant={model_variant}, loss_path={loss_path}, "
             f"world_size={world_size}, per_gpu_batch={train_config['batch_size']}"
         )
-        print(f"Unknown labels: {unknown_meta['unknown_labels_display']}")
+        if configured_classes != num_classes:
+            print(
+                f"Adjusting num_class from {configured_classes} to {num_classes} "
+                "from ood_inv_map."
+            )
 
     model = model_builder.build(model_config)
     resume_path = train_params["model_load_path"]
@@ -298,9 +298,7 @@ def main(args):
         num_class=num_classes,
         ignore_label=dataset_config["ignore_label"],
     )
-    objectosphere_loss = loss_functions.ObjectosphereLoss(
-        sigma=1.0 if is_angular else 2.0
-    )
+    objectosphere_loss = loss_functions.ObjectosphereLoss(sigma=1.0)
     arcface_loss = None
     center_loss = None
     contrastive_loss = None
@@ -342,7 +340,8 @@ def main(args):
                 oss_logits,
                 coordinates,
                 voxel_labels,
-                unknown_meta["unknown_labels"],
+                ood_map,
+                objectosphere_map,
                 is_angular,
                 True,
                 semantic_loss,
@@ -400,7 +399,8 @@ def main(args):
                     oss_logits,
                     coordinates,
                     voxel_labels,
-                    unknown_meta["unknown_labels"],
+                    ood_map,
+                    objectosphere_map,
                     is_angular,
                     False,
                     semantic_loss,
@@ -413,7 +413,8 @@ def main(args):
                     epoch + 1,
                 )
                 predictions = restore_known_predictions(
-                    torch.argmax(css_logits, dim=1).cpu().numpy(), known_labels
+                    torch.argmax(css_logits, dim=1).cpu().numpy(),
+                    metadata["inverse_values"],
                 )
                 for sample_index, grid in enumerate(grids):
                     local_histogram += fast_hist_crop(
@@ -451,9 +452,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-y",
-        "--config_path",
-        default="../config/semantickitti_ood_final.yaml",
+        "-y", "--config_path", default="../config/nuScenes_ood_final.yaml"
     )
     arguments = parser.parse_args()
     if int(os.environ.get("RANK", 0)) == 0:
