@@ -3,16 +3,15 @@
 from network.cylinder_spconv_3d import get_model_class
 from network.segmentator_3d_asymm_spconv import Asymm_3d_spconv
 from network.cylinder_fea_generator import cylinder_fea
-import network.ptv3_native
 
 
 CYLINDER_VARIANTS = {
-    "doss": {"use_arcface": False, "use_ugfa": False},
-    "fr": {"use_arcface": True, "use_ugfa": False},
-    "ugfa": {"use_arcface": False, "use_ugfa": True},
-    "fr_ugfa": {"use_arcface": True, "use_ugfa": True},
+    "doss": {"use_arm": False, "use_ugfr": False},
+    "arm": {"use_arm": True, "use_ugfr": False},
+    "ugfr": {"use_arm": False, "use_ugfr": True},
+    "urar": {"use_arm": True, "use_ugfr": True},
 }
-MODEL_VARIANTS = set(CYLINDER_VARIANTS) | {"ptv3_native"}
+MODEL_VARIANTS = set(CYLINDER_VARIANTS)
 
 
 def build(model_config):
@@ -23,15 +22,12 @@ def build(model_config):
     init_size = model_config['init_size']
     fea_dim = model_config['fea_dim']
     out_fea_dim = model_config['out_fea_dim']
-    model_variant = str(model_config.get("model_variant", "fr_ugfa")).lower()
+    model_variant = str(model_config.get("model_variant", "urar")).lower()
     if model_variant not in MODEL_VARIANTS:
         raise ValueError(
             f"Unsupported model_variant='{model_variant}'. "
             f"Expected one of {sorted(MODEL_VARIANTS)}."
         )
-    if model_variant == "ptv3_native":
-        return get_model_class("ptv3_native_asym")(model_config)
-
     cylinder_3d_spconv_seg = Asymm_3d_spconv(
         output_shape=output_shape,
         num_input_features=num_input_features,

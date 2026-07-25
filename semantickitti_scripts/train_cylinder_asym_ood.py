@@ -33,9 +33,9 @@ from utils.semantickitti_unknown import (
 
 warnings.filterwarnings("ignore")
 
-ANGULAR_VARIANTS = {"fr", "fr_ugfa"}
-DOSS_VARIANTS = {"doss", "ugfa"}
-SUPPORTED_VARIANTS = ANGULAR_VARIANTS | DOSS_VARIANTS
+ARM_VARIANTS = {"arm", "urar"}
+DOSS_LOSS_VARIANTS = {"doss", "ugfr"}
+SUPPORTED_VARIANTS = ARM_VARIANTS | DOSS_LOSS_VARIANTS
 
 
 def init_dist():
@@ -83,7 +83,7 @@ def compute_losses(
     coordinates,
     raw_voxel_labels,
     unknown_labels,
-    is_angular,
+    uses_arm_loss,
     is_train,
     semantic_loss,
     lovasz_loss,
@@ -112,7 +112,7 @@ def compute_losses(
     loss_objectosphere = objectosphere_loss(oss_point_logits, objectosphere_labels)
     semantic_labels = point_css_labels - 1
 
-    if is_angular:
+    if uses_arm_loss:
         loss_arcface = arcface_loss(oss_point_logits, semantic_labels)
         return loss_semantic + 0.3 * loss_objectosphere + 0.5 * loss_arcface
 
@@ -230,7 +230,7 @@ def main(args):
             f"This script requires model_params.model_variant in "
             f"{sorted(SUPPORTED_VARIANTS)}, got '{model_variant}'."
         )
-    is_angular = model_variant in ANGULAR_VARIANTS
+    uses_arm_loss = model_variant in ARM_VARIANTS
 
     unknown_meta = get_unknown_label_metadata(
         dataset_config["label_mapping"],
@@ -252,7 +252,7 @@ def main(args):
         with open(os.path.join(checkpoint_dir, "argsv.txt"), "w") as file:
             file.write(" ".join(sys.argv) + "\n")
         shutil.copy(args.config_path, os.path.join(checkpoint_dir, "config.yaml"))
-        loss_path = "ArcFace" if is_angular else "DOSS center/contrastive"
+        loss_path = "ARM ArcFace/Objectosphere" if uses_arm_loss else "DOSS center/contrastive"
         print(
             f"Cylinder3D: variant={model_variant}, loss_path={loss_path}, "
             f"world_size={world_size}, per_gpu_batch={train_config['batch_size']}"
@@ -299,13 +299,13 @@ def main(args):
         ignore_label=dataset_config["ignore_label"],
     )
     objectosphere_loss = loss_functions.ObjectosphereLoss(
-        sigma=1.0 if is_angular else 2.0
+        sigma=1.0 if uses_arm_loss else 2.0
     )
     arcface_loss = None
     center_loss = None
     contrastive_loss = None
     centers_path = os.path.join(checkpoint_dir, "class_centers.pt")
-    if is_angular:
+    if uses_arm_loss:
         arcface_loss = loss_functions.ArcFace(s=64.0, margin=0.3, ignore_index=-1)
     else:
         center_loss = loss_functions.CenterLoss(n_classes=num_classes)
@@ -343,7 +343,7 @@ def main(args):
                 coordinates,
                 voxel_labels,
                 unknown_meta["unknown_labels"],
-                is_angular,
+                uses_arm_loss,
                 True,
                 semantic_loss,
                 lovasz_loss,
@@ -401,7 +401,7 @@ def main(args):
                     coordinates,
                     voxel_labels,
                     unknown_meta["unknown_labels"],
-                    is_angular,
+                    uses_arm_loss,
                     False,
                     semantic_loss,
                     lovasz_loss,

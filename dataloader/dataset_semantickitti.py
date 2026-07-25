@@ -523,69 +523,6 @@ class cylinder_dataset_panop(data.Dataset):
 
 
 @register_dataset
-class ptv3_native_dataset_panop(data.Dataset):
-    """Point-level SemanticKITTI wrapper for Cartesian PTv3 processing."""
-
-    def __init__(self, in_dataset, grid_size=None, rotate_aug=False, flip_aug=False,
-                 ignore_label=255, return_test=False, fixed_volume_space=False,
-                 max_volume_space=None, min_volume_space=None, scale_aug=False,
-                 transform_aug=False, trans_std=(0.1, 0.1, 0.1)):
-        self.point_cloud_dataset = in_dataset
-        self.rotate_aug = rotate_aug
-        self.flip_aug = flip_aug
-        self.scale_aug = scale_aug
-        self.transform_aug = transform_aug
-        self.trans_std = trans_std
-        self.return_test = return_test
-
-    def __len__(self):
-        return len(self.point_cloud_dataset)
-
-    def __getitem__(self, index):
-        data = self.point_cloud_dataset[index]
-        if len(data) == 3:
-            xyz, labels, _ = data
-            intensity = np.zeros((xyz.shape[0], 1), dtype=np.float32)
-        elif len(data) == 4:
-            xyz, labels, _, intensity = data
-            intensity = np.asarray(intensity, dtype=np.float32).reshape(-1, 1)
-        else:
-            raise ValueError("Expected SemanticKITTI points, labels, instances, and optional intensity.")
-
-        xyz = np.asarray(xyz, dtype=np.float32).copy()
-        labels = np.asarray(labels, dtype=np.uint8).copy()
-
-        if self.rotate_aug:
-            rotate_rad = np.deg2rad(np.random.random() * 90) - np.pi / 4
-            c, s = np.cos(rotate_rad), np.sin(rotate_rad)
-            rotation = np.array([[c, s], [-s, c]], dtype=np.float32)
-            xyz[:, :2] = xyz[:, :2] @ rotation
-        if self.scale_aug:
-            scale = np.random.uniform(0.95, 1.05)
-            xyz[:, :2] *= scale
-        if self.transform_aug:
-            translation = np.array(
-                [np.random.normal(0, std) for std in self.trans_std],
-                dtype=np.float32,
-            )
-            xyz += translation
-        if self.flip_aug:
-            flip_type = np.random.choice(3)
-            if flip_type == 0:
-                xyz[:, 0] *= -1
-            elif flip_type == 1:
-                xyz[:, 1] *= -1
-            else:
-                xyz[:, :2] *= -1
-
-        # Raw Cartesian xyz and remission are the only PTv3 input features.
-        features = np.concatenate((xyz, intensity), axis=1).astype(np.float32)
-        if self.return_test:
-            return xyz, features, labels, index
-        return xyz, features, labels
-
-
-@register_dataset
 class polar_dataset(data.Dataset):
     def __init__(self, in_dataset, grid_size, rotate_aug=False, flip_aug=False, ignore_label=255, return_test=False,
                  fixed_volume_space=False, max_volume_space=[50, np.pi, 2], min_volume_space=[0, -np.pi, -4],
@@ -710,20 +647,6 @@ def collate_fn_BEV(data):
     xyz = [d[4] for d in data]
     return torch.from_numpy(data2stack), torch.from_numpy(label2stack), grid_ind_stack, point_label, xyz
 
-
-def collate_fn_ptv3_native(data):
-    point_coords = [item[0] for item in data]
-    point_features = [item[1] for item in data]
-    point_labels = [item[2] for item in data]
-    return point_coords, point_features, point_labels
-
-
-def collate_fn_ptv3_native_val(data):
-    point_coords = [item[0] for item in data]
-    point_features = [item[1] for item in data]
-    point_labels = [item[2] for item in data]
-    indices = [item[3] for item in data]
-    return point_coords, point_features, point_labels, indices
 
 def collate_fn_BEV_val(data):
     data2stack = np.stack([d[0] for d in data]).astype(np.float32)

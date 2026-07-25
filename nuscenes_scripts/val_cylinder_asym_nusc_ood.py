@@ -22,7 +22,7 @@ from utils.nuscenes_ood import (
 
 warnings.filterwarnings("ignore")
 
-SUPPORTED_VARIANTS = {"doss", "fr", "ugfa", "fr_ugfa"}
+SUPPORTED_VARIANTS = {"doss", "arm", "ugfr", "urar"}
 
 
 def sample_identifier(index):

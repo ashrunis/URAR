@@ -12,10 +12,13 @@ def load_checkpoint(model_load_path, model):
     nomatch_size = 0
     for k in pre_weight.keys():
         value = pre_weight[k]
-        if k in my_model_dict and my_model_dict[k].shape == value.shape:
+        current_key = k.replace(".ugfa_module.", ".ugfr_module.")
+        if current_key.startswith("ugfa_module."):
+            current_key = "ugfr_module." + current_key[len("ugfa_module."):]
+        if current_key in my_model_dict and my_model_dict[current_key].shape == value.shape:
             # print("loading ", k)
             match_size += 1
-            part_load[k] = value
+            part_load[current_key] = value
         else:
             nomatch_size += 1
 

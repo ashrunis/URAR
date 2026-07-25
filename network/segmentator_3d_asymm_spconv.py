@@ -255,7 +255,7 @@ class PrototypeLinearHead(nn.Module):
         return F.linear(F.normalize(features), F.normalize(self.prototypes))
 
 
-class UGFAModule(nn.Module):
+class UGFRModule(nn.Module):
     def __init__(self, in_channels):
         super().__init__()
         self.conv_gamma = spconv.SubMConv3d(
@@ -325,7 +325,7 @@ class Decoder(nn.Module):
             return sparse_features.replace_feature(logits).dense()
         return self.logits(sparse_features).dense()
 
-    def forward(self, x, ugfa_module=None, oss_features=None, return_features=False):
+    def forward(self, x, ugfr_module=None, oss_features=None, return_features=False):
         down1b, down2b, down3b, down4b, down4c = x
         up4e = self.upBlock0(down4c, down4b)
         up3e = self.upBlock1(up4e, down3b)
@@ -335,8 +335,8 @@ class Decoder(nn.Module):
         up0e = self.ReconNet(up1e)
 
         up0e = up0e.replace_feature(torch.cat((up0e.features, up1e.features), 1))
-        if ugfa_module is not None and oss_features is not None:
-            up0e = ugfa_module(f_css=up0e, f_oss=oss_features)
+        if ugfr_module is not None and oss_features is not None:
+            up0e = ugfr_module(f_css=up0e, f_oss=oss_features)
         if return_features:
             return up0e
 
@@ -348,10 +348,10 @@ class Asymm_3d_spconv(nn.Module):
                  output_shape,
                  num_input_features=128,
                  nclasses=20, init_size=16,
-                 use_arcface=False, use_ugfa=False):
+                 use_arm=False, use_ugfr=False):
         super(Asymm_3d_spconv, self).__init__()
         self.nclasses = nclasses
-        self.use_ugfa = use_ugfa
+        self.use_ugfr = use_ugfr
 
         sparse_shape = np.array(output_shape)
 
@@ -367,10 +367,10 @@ class Asymm_3d_spconv(nn.Module):
         self.decoder_cw = Decoder(init_size=init_size, nclasses=nclasses, indice_key="decode_c_up", arcface=False)
         
         # open-set decoder
-        self.decoder_ow = Decoder(init_size=init_size, nclasses=nclasses, indice_key="decode_o_up", arcface=use_arcface)
+        self.decoder_ow = Decoder(init_size=init_size, nclasses=nclasses, indice_key="decode_o_up", arcface=use_arm)
 
-        if use_ugfa:
-            self.ugfa_module = UGFAModule(in_channels=4 * init_size)
+        if use_ugfr:
+            self.ugfr_module = UGFRModule(in_channels=4 * init_size)
 
     def forward_ow(self, voxel_features, coors, batch_size):
         coors = coors.int()
@@ -385,11 +385,11 @@ class Asymm_3d_spconv(nn.Module):
 
         outs = [down1b, down2b, down3b, down4b, down4c]
 
-        if self.use_ugfa:
+        if self.use_ugfr:
             feature_oss = self.decoder_ow(outs, return_features=True)
             y_in = self.decoder_cw(
                 outs,
-                ugfa_module=self.ugfa_module,
+                ugfr_module=self.ugfr_module,
                 oss_features=feature_oss,
             )
             y_out = self.decoder_ow.classify(feature_oss)
