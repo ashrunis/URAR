@@ -123,9 +123,11 @@ The repository keeps `semantic_kitti_api/` unchanged as the official reference i
 
 ```bash
 cd semantickitti_api
-
+```
+```bash
 python remap_semantic_labels.py --predictions ../exp/semantic_kitti/urar/CSS_results/ --split valid --inverse
-
+```
+```bash
 python evaluate_semantics.py --dataset ~/data/SemanticKITTI/dataset --predictions ../exp/semantic_kitti/urar/ --split valid
 ```
 
@@ -155,7 +157,8 @@ CUDA_VISIBLE_DEVICES=2 python val_cylinder_asym_nusc_ood.py --config_path ../con
 
 ```bash
 cd nuscenes_api
-
+```
+```bash
 python evaluate_semantics.py --dataset ~/data/nuscenes/ --predictions ../exp/nuscenes/urar/ --split valid
 ```
 

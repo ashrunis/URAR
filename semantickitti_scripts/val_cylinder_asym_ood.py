@@ -24,10 +24,8 @@ from utils.semantickitti_unknown import (
 warnings.filterwarnings("ignore")
 
 SUPPORTED_VARIANTS = {"doss", "arm", "ugfr", "urar"}
-MAX_SCORE_THRESHOLD = 0.4
 ENTROPY_LOGIT_SCALE = 10.0
 ENTROPY_WEIGHT = 0.3
-ENTROPY_CALIBRATED_THRESHOLD = 0.5
 
 
 def sample_identifier(index):
@@ -38,13 +36,8 @@ def sample_identifier(index):
     return f"{int(index):06d}"
 
 
-def gated_max_anomaly_score(point_logits):
-    max_values = torch.max(point_logits, dim=1).values
-    return torch.where(
-        max_values <= MAX_SCORE_THRESHOLD,
-        torch.ones_like(max_values),
-        torch.full_like(max_values, 0.1),
-    )
+def max_anomaly_score(point_logits):
+    return 1.0 - torch.max(point_logits, dim=1).values
 
 
 def entropy_calibrated_anomaly_score(point_logits):
@@ -55,12 +48,7 @@ def entropy_calibrated_anomaly_score(point_logits):
         dim=1,
     )
     normalized_entropy = entropy / math.log(point_logits.shape[1])
-    calibrated_score = max_score + ENTROPY_WEIGHT * normalized_entropy
-    return torch.where(
-        calibrated_score >= ENTROPY_CALIBRATED_THRESHOLD,
-        torch.ones_like(calibrated_score),
-        torch.full_like(calibrated_score, 0.1),
-    )
+    return max_score + ENTROPY_WEIGHT * normalized_entropy
 
 
 def main(args):
@@ -174,7 +162,7 @@ def main(args):
                     grid[:, 1],
                     grid[:, 2],
                 ].transpose(0, 1)
-                anomaly_score = gated_max_anomaly_score(point_logits)
+                anomaly_score = max_anomaly_score(point_logits)
                 # anomaly_score = entropy_calibrated_anomaly_score(point_logits)
                 anomaly_score.cpu().numpy().astype(np.float32).tofile(
                     os.path.join(anomaly_dir, output_name)
