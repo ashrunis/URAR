@@ -122,7 +122,7 @@ CUDA_VISIBLE_DEVICES=0 python val_cylinder_asym_ood.py --config_path ../config/s
 The repository keeps `semantic_kitti_api/` unchanged as the official reference implementation. It expects CSS predictions in raw SemanticKITTI IDs, so inverse-remap the learning-ID predictions first:
 
 ```bash
-cd semantic_kitti_api
+cd semantickitti_api
 
 python remap_semantic_labels.py --predictions ../exp/semantic_kitti/urar/CSS_results/ --split valid --inverse
 
@@ -155,9 +155,7 @@ CUDA_VISIBLE_DEVICES=2 python val_cylinder_asym_nusc_ood.py --config_path ../con
 
 ```bash
 cd nuscenes_api
-```
 
-```bash
 python evaluate_semantics.py --dataset ~/data/nuscenes/ --predictions ../exp/nuscenes/urar/ --split valid
 ```
 
