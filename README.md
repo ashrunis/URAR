@@ -10,7 +10,7 @@ The current branch uses a simple script-level workflow: the model variant is sel
 builder/                 Model and dataloader builders
 config/                  Experiment configs and label mappings
 dataloader/              SemanticKITTI and nuScenes dataloaders
-network/                 Cylinder3D, DOSS, FR, UGFA/URAR network definitions
+network/                 Cylinder3D, DOSS, URAR network definitions
 semantickitti_scripts/   SemanticKITTI train and inference scripts
 nuscenes_scripts/        nuScenes train and inference scripts
 semantic_kitti_api/      SemanticKITTI offline evaluation utilities
@@ -20,13 +20,11 @@ utils/                   Losses, metrics, checkpoint helpers, unknown-label help
 
 ## Environment
 
-All commands assume the conda environment is named `doss`.
+All commands assume the conda environment is named `urar`.
 
 ```bash
-conda activate doss
+conda activate urar
 ```
-
-The code depends on the common Cylinder3D/DOSS stack, including PyTorch, spconv, torch-scatter, torch-cluster, numpy, scipy, scikit-learn, and PyYAML. The exact CUDA/PyTorch/spconv versions should match the local `doss` environment used for the experiments.
 
 ## Data
 
@@ -118,6 +116,8 @@ CUDA_VISIBLE_DEVICES=0 python val_cylinder_asym_ood.py --config_path ../config/s
 ```
 
 ### Evaluation
+
+We follow [the work of Cen et.al.](https://github.com/Jun-CEN/Open-world-3D-semantic-segmentation) and use [semantic_kitti_api](https://github.com/Jun-CEN/semantic_kitti_api) and [nuScenes_api](https://github.com/Jun-CEN/nuScenes_api) to evaluate the performance.
 
 The repository keeps `semantic_kitti_api/` unchanged as the official reference implementation. It expects CSS predictions in raw SemanticKITTI IDs, so inverse-remap the learning-ID predictions first:
 
