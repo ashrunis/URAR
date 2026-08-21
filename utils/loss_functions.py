@@ -178,14 +178,72 @@ class CenterLoss(nn.Module):
         return mav_tensor
 
 
+class KnownClassMixup(nn.Module):
+    """Create proxy-unknown embeddings by mixing points from different classes."""
+
+    def __init__(self, ratio=0.25, alpha=2.0):
+        super().__init__()
+        if ratio < 0:
+            raise ValueError("mixup ratio must be non-negative")
+        if alpha <= 0:
+            raise ValueError("mixup alpha must be positive")
+        self.ratio = ratio
+        self.alpha = alpha
+
+    def forward(self, logits, labels):
+        known_mask = (labels != 66) & (labels != -1)
+        known_logits = logits[known_mask]
+        known_labels = labels[known_mask]
+        if self.ratio == 0 or known_logits.shape[0] == 0:
+            return logits.new_empty((0, logits.shape[-1]))
+
+        unique_labels = torch.unique(known_labels)
+        if unique_labels.numel() < 2:
+            return logits.new_empty((0, logits.shape[-1]))
+
+        num_mix = max(1, int(round(self.ratio * known_logits.shape[0])))
+        first_indices = torch.randint(
+            known_logits.shape[0], (num_mix,), device=logits.device
+        )
+        first_labels = known_labels[first_indices]
+        second_indices = torch.empty_like(first_indices)
+
+        # Choose the second endpoint from a different semantic class. Grouping by
+        # the first label avoids an expensive num_mix x num_known mask.
+        for label in unique_labels:
+            positions = torch.where(first_labels == label)[0]
+            if positions.numel() == 0:
+                continue
+            candidates = torch.where(known_labels != label)[0]
+            choices = torch.randint(
+                candidates.numel(), (positions.numel(),), device=logits.device
+            )
+            second_indices[positions] = candidates[choices]
+
+        concentration = logits.new_tensor(self.alpha)
+        mix_weight = torch.distributions.Beta(
+            concentration, concentration
+        ).sample((num_mix, 1))
+        return (
+            mix_weight * known_logits[first_indices]
+            + (1.0 - mix_weight) * known_logits[second_indices]
+        )
+
+
 class ObjectosphereLoss(nn.Module):
-    def __init__(self, sigma=1.0):
+    def __init__(self, sigma=1.0, mixup_ratio=0.25, mixup_alpha=2.0):
         super().__init__()
         self.sigma = sigma
+        self.mixup = KnownClassMixup(ratio=mixup_ratio, alpha=mixup_alpha)
 
     def forward(self, logits, sem_gt):
         logits_unk = logits[torch.where(sem_gt == -1)]
         logits_kn = logits[torch.where((sem_gt != 66) & (sem_gt != -1))]
+
+        # if torch.is_grad_enabled():
+        #     mixed_unknown = self.mixup(logits, sem_gt)
+        #     if mixed_unknown.shape[0] > 0:
+        #         logits_unk = torch.cat((logits_unk, mixed_unknown), dim=0)
 
         if len(logits_unk):
             loss_unk = torch.linalg.norm(logits_unk, dim=1).mean()
