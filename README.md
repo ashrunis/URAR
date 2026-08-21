@@ -79,7 +79,6 @@ model_params:
 
 dataset_params:
   unknown_label: 5
-  # unknown_labels: [6, 7]
 
 train_params:
   model_load_path: "/path/to/checkpoints/semantic_kitti/exp_name/best_model.pt"
@@ -160,17 +159,4 @@ cd nuscenes_api
 ```
 ```bash
 python evaluate_semantics.py --dataset ~/data/nuscenes/ --predictions ../exp/nuscenes/urar/ --split valid
-```
-
-## Citation
-
-If this code is useful for your work, please cite the corresponding paper:
-
-```bibtex
-@article{urar_open_set_point_cloud_segmentation,
-  title = {Uncertainty Rectified Angular Representation for Open-set Point Cloud Semantic Segmentation},
-  author = {Anonymous},
-  journal = {Under review},
-  year = {2026}
-}
 ```
