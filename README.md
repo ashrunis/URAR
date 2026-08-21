@@ -160,3 +160,8 @@ cd nuscenes_api
 ```bash
 python evaluate_semantics.py --dataset ~/data/nuscenes/ --predictions ../exp/nuscenes/urar/ --split valid
 ```
+
+## Acknowledgments
+
+We refer to the following open-source repository:
+[Cylinder3D](https://github.com/xinge008/Cylinder3D), [Open_world_3D_semantic_segmentation](https://github.com/Jun-CEN/Open-world-3D-semantic-segmentation) and [DOSS](https://github.com/nubot-nudt/DOSS)
